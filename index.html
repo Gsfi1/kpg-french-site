@@ -1,0 +1,253 @@
+<!doctype html>
+<html lang="el">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>ΚΠΓ Γαλλικά | Θέματα και απαντήσεις</title>
+    <meta
+      name="description"
+      content="Στατικό GitHub Pages site για εξάσκηση στα θέματα ΚΠΓ Γαλλικών."
+    />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <header class="app-header">
+      <div class="brand">
+        <div class="brand-mark" aria-hidden="true">
+          <span></span>
+          <span></span>
+          <span></span>
+        </div>
+        <div>
+          <p class="eyebrow">ΚΠΓ Γαλλικά</p>
+          <h1>Θέματα και απαντήσεις</h1>
+        </div>
+      </div>
+      <div class="header-actions">
+        <button class="tool-button" type="button" id="exportBtn" title="Εξαγωγή">
+          <span aria-hidden="true">↓</span>
+          Εξαγωγή
+        </button>
+        <label class="tool-button file-button" title="Εισαγωγή">
+          <span aria-hidden="true">↑</span>
+          Εισαγωγή
+          <input id="importFile" type="file" accept="application/json" />
+        </label>
+        <button class="tool-button" type="button" id="printBtn" title="Εκτύπωση">
+          <span aria-hidden="true">□</span>
+          Εκτύπωση
+        </button>
+        <button class="tool-button danger-tool" type="button" id="clearBtn" title="Καθαρισμός">
+          <span aria-hidden="true">×</span>
+          Καθαρισμός
+        </button>
+      </div>
+    </header>
+
+    <main class="app-shell">
+      <aside class="side-panel" aria-label="Φίλτρα">
+        <section class="visual-card" aria-label="Γαλλικά">
+          <div class="desk-visual" aria-hidden="true">
+            <div class="paris-postcard">
+              <div class="postcard-stamp">FR</div>
+              <div class="postcard-title">Paris</div>
+              <div class="skyline">
+                <span class="tower-leg tower-left"></span>
+                <span class="tower-leg tower-right"></span>
+                <span class="tower-mid"></span>
+                <span class="tower-deck deck-one"></span>
+                <span class="tower-deck deck-two"></span>
+              </div>
+              <div class="seine"></div>
+            </div>
+          </div>
+        </section>
+
+        <section class="control-block">
+          <h2>Φίλτρα</h2>
+          <label class="field-label" for="searchInput">Αναζήτηση</label>
+          <input
+            class="text-input"
+            id="searchInput"
+            type="search"
+            placeholder="Μάιος, Β, Γ1..."
+          />
+
+          <fieldset class="level-filter">
+            <legend>Επίπεδο</legend>
+            <label><input type="radio" name="level" value="all" checked /> Όλα</label>
+            <label><input type="radio" name="level" value="Α" /> Α</label>
+            <label><input type="radio" name="level" value="Β" /> Β</label>
+            <label><input type="radio" name="level" value="Γ" /> Γ</label>
+          </fieldset>
+
+          <label class="checkbox-line">
+            <input type="checkbox" id="onlyOpen" />
+            Μόνο ανοιχτά
+          </label>
+        </section>
+
+        <section class="control-block stats-block" aria-live="polite">
+          <h2>Πρόοδος</h2>
+          <div class="stat-grid">
+            <div>
+              <strong id="totalCount">0</strong>
+              <span>θέματα</span>
+            </div>
+            <div>
+              <strong id="doneCount">0</strong>
+              <span>έτοιμα</span>
+            </div>
+          </div>
+          <progress id="progressBar" value="0" max="100">0%</progress>
+        </section>
+      </aside>
+
+      <section class="content-panel">
+        <div class="toolbar">
+          <div>
+            <p class="eyebrow">Τράπεζα θεμάτων</p>
+            <h2>Επίσημοι σύνδεσμοι και δικά σου φύλλα απαντήσεων</h2>
+          </div>
+          <button class="primary-button" type="button" id="addCustomBtn">
+            + Θέμα
+          </button>
+        </div>
+
+        <form class="custom-form" id="customForm" hidden>
+          <div class="form-grid">
+            <label>
+              Εξεταστική
+              <input class="text-input" id="customSession" type="text" placeholder="π.χ. Μάιος 2026" />
+            </label>
+            <label>
+              Επίπεδο
+              <select class="text-input" id="customLevel">
+                <option value="Α">Α</option>
+                <option value="Β">Β</option>
+                <option value="Γ">Γ</option>
+              </select>
+            </label>
+            <label>
+              Τίτλος
+              <input class="text-input" id="customTitle" type="text" placeholder="π.χ. Παραγωγή γραπτού λόγου" />
+            </label>
+            <label>
+              Σύνδεσμος
+              <input class="text-input" id="customUrl" type="url" placeholder="https://..." />
+            </label>
+          </div>
+          <div class="form-actions">
+            <button class="primary-button" type="submit">Προσθήκη</button>
+            <button class="ghost-button" type="button" id="cancelCustomBtn">Άκυρο</button>
+          </div>
+        </form>
+
+        <div class="source-note">
+          Πηγή: επίσημη σελίδα ΚΠΓ για τα Γαλλικά και συνδεδεμένα αρχεία ΥΠΑΙΘΑ/ΑΠΘ.
+        </div>
+
+        <section class="paper-chooser" aria-label="Επιλογή θέματος">
+          <label class="field-label" for="paperSelect">Επίλεξε θέμα</label>
+          <select class="text-input" id="paperSelect"></select>
+          <p id="selectedPaperSummary">Το επιλεγμένο θέμα ανοίγει από κάτω.</p>
+        </section>
+
+        <div class="paper-list" id="paperList" aria-live="polite"></div>
+      </section>
+    </main>
+
+    <template id="paperTemplate">
+      <article class="paper-card">
+        <div class="paper-main">
+          <div>
+            <div class="paper-tags"></div>
+            <h3></h3>
+            <p class="paper-meta"></p>
+            <p class="paper-note"></p>
+          </div>
+          <div class="paper-actions">
+            <a class="link-button" target="_blank" rel="noreferrer">Άνοιγμα</a>
+            <button class="ghost-button delete-custom" type="button">Διαγραφή</button>
+          </div>
+        </div>
+
+        <section class="exam-viewer">
+          <div class="mode-strip" aria-label="Επιλογές εργασίας">
+            <a class="primary-button resource-open-top" target="_blank" rel="noreferrer">Άνοιγμα PDF</a>
+            <a class="ghost-button fill-jump" href="#fill-here">Συμπλήρωση στο site</a>
+          </div>
+          <div class="viewer-tools">
+            <label>
+              Υλικό θέματος
+              <select class="text-input resource-select"></select>
+            </label>
+            <a class="link-button resource-open" target="_blank" rel="noreferrer">Άνοιγμα αρχείου</a>
+          </div>
+        </section>
+
+        <section class="fill-panel" id="fill-here">
+          <div class="fill-heading">
+            <div>
+              <p class="eyebrow">Συμπλήρωση στο site</p>
+              <h4>Φύλλο απαντήσεων</h4>
+            </div>
+            <span>Οι απαντήσεις αποθηκεύονται αυτόματα στη συσκευή.</span>
+          </div>
+
+          <div class="section-answer-grid">
+            <div class="answer-section">
+              <div class="section-label">Ενότητα 1 - Κατανόηση γραπτού λόγου</div>
+              <div class="prompt-box" data-prompt="section1"></div>
+            </div>
+            <div class="answer-section">
+              <div class="section-label">Ενότητα 2 - Παραγωγή γραπτού λόγου</div>
+              <div class="prompt-box" data-prompt="section2"></div>
+            </div>
+            <div class="answer-section">
+              <div class="section-label">Ενότητα 3 - Κατανόηση προφορικού λόγου</div>
+              <div class="prompt-box" data-prompt="section3"></div>
+            </div>
+            <div class="answer-section">
+              <div class="section-label">Ενότητα 4 - Προφορική εξέταση</div>
+              <div class="prompt-box" data-prompt="section4"></div>
+            </div>
+          </div>
+        </section>
+
+        <div class="answer-grid">
+          <label>
+            Κατάσταση
+            <select class="text-input answer-field" data-field="status">
+              <option value="open">Δεν ξεκίνησα</option>
+              <option value="working">Σε εξέλιξη</option>
+              <option value="done">Ολοκληρώθηκε</option>
+            </select>
+          </label>
+          <label>
+            Βαθμός / στόχος
+            <input class="text-input answer-field" data-field="score" type="text" placeholder="π.χ. 82/100" />
+          </label>
+        </div>
+
+        <label class="wide-label">
+          Γενικές απαντήσεις / πρόχειρο
+          <textarea class="answer-field" data-field="answers" rows="5"></textarea>
+        </label>
+        <label class="wide-label">
+          Παραγωγή γραπτού λόγου
+          <textarea class="answer-field" data-field="writing" rows="5"></textarea>
+        </label>
+        <label class="wide-label">
+          Λεξιλόγιο και λάθη
+          <textarea class="answer-field" data-field="notes" rows="4"></textarea>
+        </label>
+      </article>
+    </template>
+
+    <script src="paper-assets.js"></script>
+    <script src="paper-prompts.js"></script>
+    <script src="paper-images.js"></script>
+    <script src="app.js"></script>
+  </body>
+</html>
