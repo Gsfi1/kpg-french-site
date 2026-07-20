@@ -24,14 +24,37 @@
     requestAnimationFrame(() => autoGrow(field));
   }
 
+  function convertActivityDetails(root = document) {
+    root.querySelectorAll("details.activity-card").forEach((details) => {
+      if (details.dataset.visibleActivityReady) return;
+
+      const section = document.createElement("section");
+      section.className = details.className;
+      section.dataset.visibleActivityReady = "true";
+
+      const summary = details.querySelector(":scope > summary");
+      const title = document.createElement("h5");
+      title.className = "activity-title";
+      title.textContent = summary?.textContent?.trim() || "Activité";
+      section.append(title);
+
+      Array.from(details.childNodes).forEach((child) => {
+        if (child === summary) return;
+        section.append(child);
+      });
+
+      details.replaceWith(section);
+    });
+  }
+
   function enhanceActivityAnswerFields(root = document) {
+    convertActivityDetails(root);
+
     root.querySelectorAll(".prompt-box > details").forEach((details) => {
       details.open = true;
     });
 
     root.querySelectorAll(".activity-card").forEach((card) => {
-      if (card.tagName === "DETAILS") card.open = true;
-
       const answerBlock = card.querySelector(".activity-answer-block");
       if (!answerBlock) return;
 
