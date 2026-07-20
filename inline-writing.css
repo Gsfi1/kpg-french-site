@@ -2,12 +2,12 @@
   position: relative;
   min-height: 360px;
   margin: 0 10px 10px;
-  padding: 12px 12px 210px;
-  overflow: hidden;
-  border: 1px solid rgba(29, 79, 159, 0.16);
+  padding: 12px 12px 180px;
+  overflow: visible;
+  border: 1px solid rgba(29, 79, 159, 0.14);
   border-radius: 6px;
   background:
-    linear-gradient(90deg, rgba(212, 61, 75, 0.18) 0 3px, transparent 3px),
+    linear-gradient(90deg, rgba(212, 61, 75, 0.16) 0 3px, transparent 3px),
     linear-gradient(180deg, #fffefb, #fffdf8);
   cursor: text;
 }
@@ -29,58 +29,63 @@
   position: absolute;
   z-index: 5;
   display: block;
-  width: min(520px, calc(100% - 24px));
+  width: min(640px, calc(100% - 24px));
   margin: 0;
-  padding: 8px 10px 10px;
-  border: 1px dashed rgba(29, 79, 159, 0.5);
-  border-radius: 6px;
-  background: rgba(255, 255, 255, 0.72);
-  color: var(--blue);
-  font-size: 0.84rem;
-  font-weight: 900;
-  box-shadow: 0 12px 24px rgba(19, 28, 50, 0.12);
-  backdrop-filter: blur(6px);
+  padding: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
 }
 
 .activity-writing-sheet .inline-answer-floating span {
-  display: block;
-  margin-bottom: 5px;
-  color: var(--blue);
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
 }
 
 .activity-writing-sheet .activity-answer {
+  display: block;
   width: 100%;
-  min-height: 128px;
-  padding: 2px 2px 8px;
+  min-height: 70px;
+  padding: 0 2px 6px;
+  overflow: hidden;
   border: 0;
   border-radius: 0;
   background:
     repeating-linear-gradient(
       to bottom,
       rgba(255, 255, 255, 0) 0,
-      rgba(255, 255, 255, 0) 31px,
-      rgba(29, 79, 159, 0.32) 31px,
-      rgba(29, 79, 159, 0.32) 32px
+      rgba(255, 255, 255, 0) 29px,
+      rgba(29, 79, 159, 0.3) 29px,
+      rgba(29, 79, 159, 0.3) 30px
     );
   box-shadow: none;
   color: #10203f;
-  line-height: 32px;
-  resize: both;
+  font: inherit;
+  font-size: 1rem;
+  font-weight: 700;
+  line-height: 30px;
+  resize: vertical;
 }
 
 .activity-writing-sheet .activity-answer:focus {
   border-color: transparent;
   outline: none;
-  box-shadow: inset 0 -2px 0 rgba(29, 79, 159, 0.75);
+  background-color: rgba(255, 255, 255, 0.46);
+  box-shadow: inset 0 -2px 0 rgba(29, 79, 159, 0.64);
 }
 
 .activity-writing-sheet .activity-answer::placeholder {
-  color: rgba(98, 110, 132, 0.72);
+  color: rgba(29, 79, 159, 0.55);
+  font-weight: 800;
 }
 
 @media (max-width: 640px) {
   .activity-writing-sheet {
-    padding: 10px 10px 220px;
+    padding: 10px 10px 180px;
   }
 
   .activity-writing-sheet .inline-answer-floating {
