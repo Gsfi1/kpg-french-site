@@ -25,7 +25,13 @@
   }
 
   function enhanceActivityAnswerFields(root = document) {
+    root.querySelectorAll(".prompt-box > details").forEach((details) => {
+      details.open = true;
+    });
+
     root.querySelectorAll(".activity-card").forEach((card) => {
+      if (card.tagName === "DETAILS") card.open = true;
+
       const answerBlock = card.querySelector(".activity-answer-block");
       if (!answerBlock) return;
 
