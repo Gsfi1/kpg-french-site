@@ -406,10 +406,13 @@ function setupPrompts(node, paper) {
         activitySummary.textContent = activity.title;
         activityDetails.append(activitySummary);
 
+        const activitySheet = document.createElement("div");
+        activitySheet.className = "activity-writing-sheet";
+
         const text = document.createElement("pre");
         text.className = "prompt-text activity-text";
         text.textContent = activity.text;
-        activityDetails.append(text);
+        activitySheet.append(text);
 
         const imageEntries = activityImagesFor(paper.id, entry.source, activity);
         if (imageEntries.length > 0) {
@@ -439,12 +442,12 @@ function setupPrompts(node, paper) {
             imageGrid.append(figure);
           });
 
-          activityDetails.append(imageGrid);
+          activitySheet.append(imageGrid);
         }
 
         if (activity.answerable !== false) {
           const answerLabel = document.createElement("label");
-          answerLabel.className = "activity-answer-block";
+          answerLabel.className = "activity-answer-block inline-answer-fixed";
           const answerTitle = document.createElement("span");
           answerTitle.textContent = "Απάντηση";
           const answerField = document.createElement("textarea");
@@ -453,9 +456,10 @@ function setupPrompts(node, paper) {
           answerField.rows = 4;
           answerField.placeholder = "Γράψε εδώ την απάντησή σου για αυτή την activité.";
           answerLabel.append(answerTitle, answerField);
-          activityDetails.append(answerLabel);
+          activitySheet.append(answerLabel);
         }
 
+        activityDetails.append(activitySheet);
         activityList.append(activityDetails);
       });
 
@@ -637,7 +641,10 @@ searchInput.addEventListener("input", render);
 onlyOpen.addEventListener("change", render);
 paperSelect.addEventListener("change", () => {
   selectedPaperId = paperSelect.value;
-  renderSelectedPaper(allPapers().filter(matchesFilters));
+  render();
+  requestAnimationFrame(() => {
+    paperList.scrollIntoView({ behavior: "smooth", block: "start" });
+  });
 });
 
 addCustomBtn.addEventListener("click", () => {
