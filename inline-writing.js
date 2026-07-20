@@ -1,5 +1,6 @@
 (() => {
   const POSITION_KEY = "kpgFrenchInlinePositions.v1";
+  const FIELD_MIN_HEIGHT = 70;
 
   function readPositions() {
     try {
@@ -21,17 +22,32 @@
     return Math.max(min, Math.min(value, max));
   }
 
+  function autoGrow(field) {
+    field.style.height = "auto";
+    field.style.height = `${Math.max(FIELD_MIN_HEIGHT, field.scrollHeight)}px`;
+  }
+
+  function resizeSheetForAnswer(answerBlock, sheet) {
+    const bottom = answerBlock.offsetTop + answerBlock.offsetHeight + 40;
+    if (bottom > sheet.clientHeight) {
+      sheet.style.minHeight = `${bottom}px`;
+    }
+  }
+
   function placeAnswer(answerBlock, sheet, x, y, shouldFocus = true) {
-    const blockWidth = answerBlock.offsetWidth || Math.min(520, sheet.clientWidth - 24);
-    const blockHeight = answerBlock.offsetHeight || 180;
+    const field = answerBlock.querySelector(".activity-answer");
+    if (field) autoGrow(field);
+
+    const blockWidth = answerBlock.offsetWidth || Math.min(640, sheet.clientWidth - 24);
+    const blockHeight = answerBlock.offsetHeight || FIELD_MIN_HEIGHT;
     const left = clamp(x, 12, Math.max(12, sheet.clientWidth - blockWidth - 12));
     const top = clamp(y, 12, Math.max(12, sheet.scrollHeight - blockHeight - 12));
 
     answerBlock.style.left = `${Math.round(left)}px`;
     answerBlock.style.top = `${Math.round(top)}px`;
     sheet.classList.add("has-inline-answer");
+    resizeSheetForAnswer(answerBlock, sheet);
 
-    const field = answerBlock.querySelector(".activity-answer");
     const fieldKey = field?.dataset.field;
     if (fieldKey) {
       const positions = readPositions();
@@ -39,7 +55,11 @@
       writePositions(positions);
     }
 
-    if (shouldFocus && field) field.focus();
+    if (shouldFocus && field) {
+      field.focus();
+      const end = field.value.length;
+      field.setSelectionRange(end, end);
+    }
   }
 
   function applySavedOrDefaultPosition(answerBlock, sheet) {
@@ -53,9 +73,25 @@
       }
 
       const text = sheet.querySelector(".activity-text");
-      const textBottom = text ? text.offsetTop + Math.min(text.offsetHeight, 160) : 72;
-      placeAnswer(answerBlock, sheet, 18, textBottom + 12, false);
+      const textBottom = text ? text.offsetTop + Math.min(text.offsetHeight, 150) : 72;
+      placeAnswer(answerBlock, sheet, 18, textBottom + 10, false);
     });
+  }
+
+  function prepareField(answerBlock, sheet) {
+    const title = answerBlock.querySelector("span");
+    if (title) title.textContent = "Απάντηση";
+
+    const field = answerBlock.querySelector(".activity-answer");
+    if (!field) return;
+
+    field.rows = 2;
+    field.placeholder = "Γράψε εδώ";
+    field.addEventListener("input", () => {
+      autoGrow(field);
+      resizeSheetForAnswer(answerBlock, sheet);
+    });
+    autoGrow(field);
   }
 
   function enhanceInlineAnswers(root = document) {
@@ -81,15 +117,7 @@
 
       if (!answerBlock.classList.contains("inline-answer-floating")) {
         answerBlock.classList.add("inline-answer-floating");
-        const title = answerBlock.querySelector("span");
-        if (title) title.textContent = "Απάντηση";
-
-        const field = answerBlock.querySelector(".activity-answer");
-        if (field) {
-          field.rows = Math.max(Number(field.getAttribute("rows") || 0), 4);
-          field.placeholder = "Γράψε εδώ";
-        }
-
+        prepareField(answerBlock, sheet);
         applySavedOrDefaultPosition(answerBlock, sheet);
       }
 
@@ -104,7 +132,7 @@
           const rect = sheet.getBoundingClientRect();
           const x = event.clientX - rect.left;
           const y = event.clientY - rect.top + sheet.scrollTop;
-          placeAnswer(activeAnswer, sheet, x, y - 22);
+          placeAnswer(activeAnswer, sheet, x, y - 14);
         });
       }
     });
