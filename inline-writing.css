@@ -9,6 +9,16 @@
     linear-gradient(180deg, #fffefb, #fffdf8);
 }
 
+.prompt-box > details > :not(summary),
+.prompt-box .activity-card > :not(summary) {
+  display: block !important;
+}
+
+.prompt-box > details,
+.prompt-box .activity-card {
+  overflow: visible;
+}
+
 .activity-writing-sheet .prompt-text {
   max-height: none;
   margin: 0 0 12px;
