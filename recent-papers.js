@@ -159,16 +159,16 @@ window.paperAssets = {
         recentPaperId(session, level),
         [
           {
+            kind: "page",
+            href: session.page
+          },
+          {
             kind: "zip",
             href: recentPaperPackageUrl(session, level)
           },
           {
             kind: "audio",
             href: recentPaperAudioUrl(session, level)
-          },
-          {
-            kind: "page",
-            href: session.page
           }
         ]
       ])
