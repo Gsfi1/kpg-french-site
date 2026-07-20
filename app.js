@@ -370,7 +370,7 @@ function setupPrompts(node, paper) {
 
     entries.forEach((entry, index) => {
       const details = document.createElement("details");
-      details.open = index === 0;
+      details.open = true;
 
       const summary = document.createElement("summary");
       const title = document.createElement("span");
@@ -398,11 +398,11 @@ function setupPrompts(node, paper) {
 
       splitActivities(entry.text ?? "").forEach((activity, activityIndex) => {
         const fieldKey = activityAnswerField(section, entry, index, activityIndex);
-        const activityDetails = document.createElement("details");
+        const activityDetails = document.createElement("section");
         activityDetails.className = "activity-card";
-        activityDetails.open = index === 0 && activityIndex === 0;
 
-        const activitySummary = document.createElement("summary");
+        const activitySummary = document.createElement("h5");
+        activitySummary.className = "activity-title";
         activitySummary.textContent = activity.title;
         activityDetails.append(activitySummary);
 
