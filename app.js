@@ -5,6 +5,7 @@ const officialSourceUrl = "https://rcel2.enl.uoa.gr/kpg/gr_past_papers_fr.htm";
 const paperAssets = window.paperAssets ?? {};
 const paperPrompts = window.paperPrompts ?? {};
 const paperImages = window.paperImages ?? {};
+const recentPapers = window.recentPapers ?? [];
 
 const officialPapers = [
   {
@@ -154,7 +155,7 @@ function writeJson(key, value) {
 }
 
 function allPapers() {
-  return [...officialPapers, ...customPapers];
+  return [...recentPapers, ...officialPapers, ...customPapers];
 }
 
 function activeLevel() {
@@ -339,8 +340,8 @@ function setupResources(node, paper) {
     const resource = resources[Number(select.value) || 0];
     openLink.href = resource.href;
     openLinkTop.href = resource.href;
-    openLink.textContent = resource.kind === "audio" ? "Άνοιγμα ακουστικού" : "Άνοιγμα αρχείου";
-    openLinkTop.textContent = resource.kind === "audio" ? "Άνοιγμα ακουστικού" : "Άνοιγμα PDF";
+    openLink.textContent = resourceActionLabel(resource);
+    openLinkTop.textContent = resourceActionLabel(resource);
   };
 
   select.addEventListener("change", renderResource);
@@ -584,6 +585,8 @@ function resourceLabel(resource) {
   const fileName = (resource.href ?? resource.label ?? "").split("/").pop().toLowerCase();
   let section = "Υλικό θέματος";
 
+  if (resource.kind === "zip") return "Επίσημο πακέτο θεμάτων";
+  if (resource.kind === "page") return "Επίσημη σελίδα Υπουργείου";
   if (fileName.includes("epr1")) section = "Ενότητα 1 - Κατανόηση γραπτού λόγου";
   if (fileName.includes("epr2")) section = "Ενότητα 2 - Παραγωγή γραπτού λόγου";
   if (fileName.includes("epr3")) section = "Ενότητα 3 - Κατανόηση προφορικού λόγου";
@@ -596,6 +599,13 @@ function resourceLabel(resource) {
   if (fileName.includes("livret")) return `${section} - Φυλλάδιο`;
   if (fileName.includes("demo")) return `${section} - Θέμα δείγματος`;
   return `${section} - Θέμα`;
+}
+
+function resourceActionLabel(resource) {
+  if (resource.kind === "audio") return "Άνοιγμα ακουστικού";
+  if (resource.kind === "zip") return "Άνοιγμα θεμάτων";
+  if (resource.kind === "page") return "Άνοιγμα πηγής";
+  return "Άνοιγμα αρχείου";
 }
 
 function updateStats(papers) {
