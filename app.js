@@ -389,7 +389,7 @@ function setupPrompts(node, paper) {
         link.href = entry.href;
         link.target = "_blank";
         link.rel = "noreferrer";
-        link.textContent = "Άνοιγμα αντίστοιχου PDF";
+        link.textContent = promptLinkText(entry.href);
         details.append(link);
       }
 
@@ -606,6 +606,13 @@ function resourceActionLabel(resource) {
   if (resource.kind === "zip") return "Άνοιγμα θεμάτων";
   if (resource.kind === "page") return "Άνοιγμα πηγής";
   return "Άνοιγμα αρχείου";
+}
+
+function promptLinkText(href) {
+  const fileName = (href ?? "").split("/").pop().toLowerCase();
+  if (fileName.endsWith(".zip")) return "Άνοιγμα πακέτου θεμάτων";
+  if (fileName.endsWith(".mp3")) return "Άνοιγμα ακουστικού";
+  return "Άνοιγμα αντίστοιχου PDF";
 }
 
 function updateStats(papers) {
