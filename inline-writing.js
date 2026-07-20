@@ -1,25 +1,8 @@
 (() => {
-  const POSITION_KEY = "kpgFrenchInlinePositions.v1";
-  const FIELD_MIN_HEIGHT = 70;
-
-  function readPositions() {
-    try {
-      return JSON.parse(localStorage.getItem(POSITION_KEY)) ?? {};
-    } catch {
-      return {};
-    }
-  }
-
-  function writePositions(positions) {
-    localStorage.setItem(POSITION_KEY, JSON.stringify(positions));
-  }
+  const FIELD_MIN_HEIGHT = 118;
 
   function directChildrenWithClass(element, className) {
     return Array.from(element.children).find((child) => child.classList.contains(className));
-  }
-
-  function clamp(value, min, max) {
-    return Math.max(min, Math.min(value, max));
   }
 
   function autoGrow(field) {
@@ -27,74 +10,25 @@
     field.style.height = `${Math.max(FIELD_MIN_HEIGHT, field.scrollHeight)}px`;
   }
 
-  function resizeSheetForAnswer(answerBlock, sheet) {
-    const bottom = answerBlock.offsetTop + answerBlock.offsetHeight + 40;
-    if (bottom > sheet.clientHeight) {
-      sheet.style.minHeight = `${bottom}px`;
-    }
-  }
-
-  function placeAnswer(answerBlock, sheet, x, y, shouldFocus = true) {
-    const field = answerBlock.querySelector(".activity-answer");
-    if (field) autoGrow(field);
-
-    const blockWidth = answerBlock.offsetWidth || Math.min(640, sheet.clientWidth - 24);
-    const blockHeight = answerBlock.offsetHeight || FIELD_MIN_HEIGHT;
-    const left = clamp(x, 12, Math.max(12, sheet.clientWidth - blockWidth - 12));
-    const top = clamp(y, 12, Math.max(12, sheet.scrollHeight - blockHeight - 12));
-
-    answerBlock.style.left = `${Math.round(left)}px`;
-    answerBlock.style.top = `${Math.round(top)}px`;
-    sheet.classList.add("has-inline-answer");
-    resizeSheetForAnswer(answerBlock, sheet);
-
-    const fieldKey = field?.dataset.field;
-    if (fieldKey) {
-      const positions = readPositions();
-      positions[fieldKey] = { x: Math.round(left), y: Math.round(top) };
-      writePositions(positions);
-    }
-
-    if (shouldFocus && field) {
-      field.focus();
-      const end = field.value.length;
-      field.setSelectionRange(end, end);
-    }
-  }
-
-  function applySavedOrDefaultPosition(answerBlock, sheet) {
-    const field = answerBlock.querySelector(".activity-answer");
-    const saved = field?.dataset.field ? readPositions()[field.dataset.field] : null;
-
-    requestAnimationFrame(() => {
-      if (saved) {
-        placeAnswer(answerBlock, sheet, saved.x, saved.y, false);
-        return;
-      }
-
-      const text = sheet.querySelector(".activity-text");
-      const textBottom = text ? text.offsetTop + Math.min(text.offsetHeight, 150) : 72;
-      placeAnswer(answerBlock, sheet, 18, textBottom + 10, false);
-    });
-  }
-
-  function prepareField(answerBlock, sheet) {
+  function prepareField(answerBlock) {
     const title = answerBlock.querySelector("span");
     if (title) title.textContent = "Απάντηση";
 
     const field = answerBlock.querySelector(".activity-answer");
     if (!field) return;
 
-    field.rows = 2;
-    field.placeholder = "Γράψε εδώ";
-    field.addEventListener("input", () => {
-      autoGrow(field);
-      resizeSheetForAnswer(answerBlock, sheet);
-    });
-    autoGrow(field);
+    field.rows = 4;
+    field.placeholder = "Γράψε την απάντησή σου εδώ";
+
+    if (!field.dataset.inlineAnswerReady) {
+      field.dataset.inlineAnswerReady = "true";
+      field.addEventListener("input", () => autoGrow(field));
+    }
+
+    requestAnimationFrame(() => autoGrow(field));
   }
 
-  function enhanceInlineAnswers(root = document) {
+  function enhanceActivityAnswerFields(root = document) {
     root.querySelectorAll(".activity-card").forEach((card) => {
       const summary = card.querySelector("summary");
       const answerBlock = card.querySelector(".activity-answer-block");
@@ -115,41 +49,24 @@
         card.append(sheet);
       }
 
-      if (!answerBlock.classList.contains("inline-answer-floating")) {
-        answerBlock.classList.add("inline-answer-floating");
-        prepareField(answerBlock, sheet);
-        applySavedOrDefaultPosition(answerBlock, sheet);
-      }
-
-      if (!sheet.dataset.inlineWritingReady) {
-        sheet.dataset.inlineWritingReady = "true";
-        sheet.addEventListener("click", (event) => {
-          if (event.target.closest("textarea, input, select, button, a, summary, .inline-answer-floating")) return;
-
-          const activeAnswer = sheet.querySelector(".inline-answer-floating");
-          if (!activeAnswer) return;
-
-          const rect = sheet.getBoundingClientRect();
-          const x = event.clientX - rect.left;
-          const y = event.clientY - rect.top + sheet.scrollTop;
-          placeAnswer(activeAnswer, sheet, x, y - 14);
-        });
-      }
+      answerBlock.classList.remove("inline-answer-floating");
+      answerBlock.classList.add("inline-answer-fixed");
+      prepareField(answerBlock);
     });
   }
 
-  function startInlineWriting() {
-    enhanceInlineAnswers();
+  function startActivityAnswerFields() {
+    enhanceActivityAnswerFields();
     const paperList = document.querySelector("#paperList");
     if (!paperList) return;
 
-    const observer = new MutationObserver(() => enhanceInlineAnswers(paperList));
+    const observer = new MutationObserver(() => enhanceActivityAnswerFields(paperList));
     observer.observe(paperList, { childList: true, subtree: true });
   }
 
   if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", startInlineWriting, { once: true });
+    document.addEventListener("DOMContentLoaded", startActivityAnswerFields, { once: true });
   } else {
-    startInlineWriting();
+    startActivityAnswerFields();
   }
 })();
