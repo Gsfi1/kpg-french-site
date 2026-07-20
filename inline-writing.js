@@ -56,6 +56,21 @@
       });
     });
     observer.observe(paperList, { childList: true });
+
+    const paperSelect = document.querySelector("#paperSelect");
+    if (paperSelect) {
+      paperSelect.addEventListener("change", () => {
+        setTimeout(() => enhanceActivityAnswerFields(paperList), 0);
+        setTimeout(() => enhanceActivityAnswerFields(paperList), 150);
+      });
+    }
+
+    let refreshes = 0;
+    const refreshTimer = setInterval(() => {
+      enhanceActivityAnswerFields(paperList);
+      refreshes += 1;
+      if (refreshes >= 12) clearInterval(refreshTimer);
+    }, 250);
   }
 
   if (document.readyState === "loading") {
