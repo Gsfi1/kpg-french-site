@@ -68,18 +68,31 @@
 
 (() => {
   function loadRecentPromptOverrides() {
-    if (document.querySelector("script[data-recent-prompts-2026-a]")) return;
+    if (!document.querySelector("script[data-recent-prompts-2026-a]")) {
+      const script = document.createElement("script");
+      script.src = "recent-prompts-2026-a-loader.js?v=2";
+      script.dataset.recentPrompts2026A = "true";
+      script.addEventListener("load", () => {
+        const select = document.querySelector("#paperSelect");
+        if (select?.value === "2026-05-a") {
+          select.dispatchEvent(new Event("change", { bubbles: true }));
+        }
+      });
+      document.head.append(script);
+    }
 
-    const script = document.createElement("script");
-    script.src = "recent-prompts-2026-a-loader.js?v=2";
-    script.dataset.recentPrompts2026A = "true";
-    script.addEventListener("load", () => {
-      const select = document.querySelector("#paperSelect");
-      if (select?.value === "2026-05-a") {
-        select.dispatchEvent(new Event("change", { bubbles: true }));
-      }
-    });
-    document.head.append(script);
+    if (!document.querySelector("script[data-recent-prompts-2026-bc]")) {
+      const script = document.createElement("script");
+      script.src = "recent-prompts-2026-bc-loader.js?v=1";
+      script.dataset.recentPrompts2026Bc = "true";
+      script.addEventListener("load", () => {
+        const select = document.querySelector("#paperSelect");
+        if (select?.value === "2026-05-b" || select?.value === "2026-05-c") {
+          select.dispatchEvent(new Event("change", { bubbles: true }));
+        }
+      });
+      document.head.append(script);
+    }
   }
 
   const EMPTY_STATE_CLASS = "paper-empty-state";
