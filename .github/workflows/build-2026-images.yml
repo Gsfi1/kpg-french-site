@@ -50,3 +50,5 @@ jobs:
             git commit -m "Generate 2026 exam images"
             git push
           fi
+
+# codex-trigger: 2026-images
