@@ -11,6 +11,8 @@ on:
       - "scripts/fix_2026_builder_payload.py"
       - "scripts/fix_page_number_zero.py"
       - "scripts/bump_cache_versions.py"
+      - "scripts/add_inline_checkboxes.py"
+      - "scripts/fix_inline_checkbox_script.py"
       - "paper-images-2026.js"
       - "app.js"
       - "inline-writing.js"
@@ -48,8 +50,11 @@ jobs:
       - name: Fix page number image sync
         run: python scripts/fix_page_number_zero.py
 
-      - name: Bump runtime cache
-        run: python scripts/bump_cache_versions.py
+      - name: Prepare inline checkbox patch
+        run: python scripts/fix_inline_checkbox_script.py
+
+      - name: Add inline checkboxes
+        run: python scripts/add_inline_checkboxes.py
 
       - name: Commit generated images
         run: |
@@ -63,4 +68,4 @@ jobs:
             git push
           fi
 
-# codex-trigger: 2026-images-v4
+# codex-trigger: inline-checkboxes-v1
