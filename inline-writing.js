@@ -538,6 +538,10 @@
       const previous = index > 0 ? sourceText[index - 1] : "";
       const next = sourceText[index + token.length] || "";
 
+      if (/^[.\u2026]+$/.test(token) && isLeadingChoiceEllipsis(sourceText, index)) {
+        return false;
+      }
+
       if (/^[.\u2026]+$/.test(token)) {
         return Boolean(next && !/\s/.test(next) && (!previous || /\s/.test(previous)));
       }
@@ -568,10 +572,75 @@
     return matches;
   }
 
+  function lineStartAt(text, index) {
+    return text.lastIndexOf("\n", Math.max(0, index - 1)) + 1;
+  }
+
+  function isLeadingChoiceEllipsis(text, index) {
+    const prefix = text.slice(lineStartAt(text, index), index);
+    return /^\s*\d+[a-z]\.\s*$/i.test(prefix);
+  }
+
+  function choiceLabelsForText(text) {
+    const labels = [];
+    const firstItem = text.search(/^\s*\d+[a-z]\./im);
+    const headerText = firstItem >= 0 ? text.slice(0, firstItem) : text;
+    const choiceLinePattern = /^\s*([A-F](?:\s+[A-F]){1,5})\s*$/gm;
+    let match;
+
+    while ((match = choiceLinePattern.exec(headerText)) !== null) {
+      match[1].split(/\s+/).forEach((label) => {
+        if (!labels.includes(label)) labels.push(label);
+      });
+    }
+
+    if (labels.length === 0) {
+      const rangeMatch = text.match(/\b([A-F])\s*-\s*([A-F])\b/);
+      if (rangeMatch) {
+        const start = rangeMatch[1].charCodeAt(0);
+        const end = rangeMatch[2].charCodeAt(0);
+        for (let code = start; code <= end; code += 1) {
+          labels.push(String.fromCharCode(code));
+        }
+      }
+    }
+
+    return labels;
+  }
+
+  function shouldGenerateChoiceRows(text) {
+    return /\b(?:croix|cochez|relie|associe|case)\b/i.test(text) || /Σημείωσε\s+με\s+x/i.test(text);
+  }
+
+  function findGeneratedChoiceGroupMatches(sourceText) {
+    if (!shouldGenerateChoiceRows(sourceText)) return [];
+
+    const choices = choiceLabelsForText(sourceText);
+    if (choices.length < 2) return [];
+
+    const matches = [];
+    const itemPattern = /^\s*\d+[a-z]\.\s+.+$/gmi;
+    let match;
+
+    while ((match = itemPattern.exec(sourceText)) !== null) {
+      const line = match[0];
+      if (/[\u25a1\uf0a8]/.test(line)) continue;
+      matches.push({
+        type: "choiceGroup",
+        token: "",
+        index: match.index + line.length,
+        choices
+      });
+    }
+
+    return matches;
+  }
+
   function findInlineWritableMatches(sourceText) {
     const orderedMatches = [
       ...findWritableBlankMatches(sourceText),
-      ...findChoiceSquareMatches(sourceText)
+      ...findChoiceSquareMatches(sourceText),
+      ...findGeneratedChoiceGroupMatches(sourceText)
     ].sort((left, right) => left.index - right.index || right.token.length - left.token.length);
 
     let lastEnd = -1;
@@ -640,6 +709,36 @@
     return label;
   }
 
+  function createInlineChoiceGroup(textBlock, prefix, rowNumber, choices) {
+    const group = document.createElement("span");
+    group.className = "inline-choice-group";
+
+    choices.forEach((choice) => {
+      const option = document.createElement("label");
+      option.className = "inline-choice-option";
+      option.append(document.createTextNode(`${choice}.`));
+
+      const fieldKey = `${prefix}${INLINE_CHOICE_TOKEN}${rowNumber}_${choice}`;
+      const checkbox = createInlineChoiceField(textBlock, fieldKey, choice, rowNumber);
+      const input = checkbox.querySelector("input");
+
+      input.addEventListener("change", () => {
+        if (!input.checked) return;
+
+        group.querySelectorAll(".inline-choice-checkbox").forEach((otherInput) => {
+          if (otherInput === input) return;
+          otherInput.checked = false;
+          writeInlineAnswer(paperIdFor(otherInput), otherInput.dataset.field, false);
+        });
+      });
+
+      option.append(checkbox);
+      group.append(document.createTextNode(" "), option);
+    });
+
+    return group;
+  }
+
   function enhanceInlineBlanks(root = document) {
     root.querySelectorAll(".prompt-text.activity-text").forEach((textBlock, blockIndex) => {
       if (textBlock.dataset.inlineBlanksReady) return;
@@ -656,6 +755,7 @@
       let lastIndex = 0;
       let blankNumber = 0;
       let choiceNumber = 0;
+      let choiceGroupNumber = 0;
 
       textBlock.textContent = "";
       textBlock.dataset.inlineBlanksReady = "true";
@@ -667,7 +767,10 @@
           textBlock.append(document.createTextNode(sourceText.slice(lastIndex, index)));
         }
 
-        if (match.type === "choice") {
+        if (match.type === "choiceGroup") {
+          choiceGroupNumber += 1;
+          textBlock.append(createInlineChoiceGroup(textBlock, prefix, choiceGroupNumber, match.choices));
+        } else if (match.type === "choice") {
           choiceNumber += 1;
           const fieldKey = `${prefix}${INLINE_CHOICE_TOKEN}${choiceNumber}`;
           textBlock.append(createInlineChoiceField(textBlock, fieldKey, match.optionLabel, choiceNumber));
