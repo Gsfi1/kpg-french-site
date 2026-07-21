@@ -9,6 +9,7 @@ on:
       - ".github/workflows/build-2026-images.yml"
       - "scripts/build_2026_images.py"
       - "scripts/fix_2026_builder_payload.py"
+      - "scripts/fix_page_number_zero.py"
       - "paper-images-2026.js"
       - "app.js"
       - "inline-writing.js"
@@ -43,6 +44,9 @@ jobs:
       - name: Build images from official PDFs
         run: python scripts/build_2026_images.py
 
+      - name: Fix page number image sync
+        run: python scripts/fix_page_number_zero.py
+
       - name: Commit generated images
         run: |
           git config user.name "github-actions[bot]"
@@ -55,4 +59,4 @@ jobs:
             git push
           fi
 
-# codex-trigger: 2026-images-v2
+# codex-trigger: 2026-images-v3
