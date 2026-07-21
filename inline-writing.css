@@ -123,6 +123,11 @@
   font-weight: 800;
 }
 
+.paper-card > .answer-grid,
+.paper-card > .wide-label {
+  display: none !important;
+}
+
 @media (max-width: 640px) {
   .activity-writing-sheet {
     margin: 0 8px 10px;
