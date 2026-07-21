@@ -16,12 +16,14 @@ on:
       - "scripts/fix_runtime_cache_versions.py"
       - "scripts/add_generated_choice_rows.py"
       - "scripts/add_choice_label_sequences.py"
+      - "scripts/fix_choice_cleanup.py"
       - "paper-images-2026.js"
       - "app.js"
       - "inline-writing.js"
       - "index.html"
       - "styles.css"
       - "inline-writing.css"
+      - "page-header-cleanup.js"
 
 permissions:
   contents: write
@@ -68,11 +70,14 @@ jobs:
       - name: Add choice label sequences
         run: python scripts/add_choice_label_sequences.py
 
+      - name: Preserve choice cleanup
+        run: python scripts/fix_choice_cleanup.py
+
       - name: Commit generated images
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add index.html app.js inline-writing.js styles.css inline-writing.css paper-images-2026.js assets/exams/2026-05-a assets/exams/2026-05-b assets/exams/2026-05-c
+          git add index.html app.js inline-writing.js styles.css inline-writing.css page-header-cleanup.js paper-images-2026.js assets/exams/2026-05-a assets/exams/2026-05-b assets/exams/2026-05-c
           if git diff --cached --quiet; then
             echo "No generated image changes"
           else
@@ -80,4 +85,4 @@ jobs:
             git push
           fi
 
-# codex-trigger: choice-label-sequences-v1
+# codex-trigger: preserve-choice-cleanup-v1
