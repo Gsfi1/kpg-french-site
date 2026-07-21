@@ -5,6 +5,7 @@
   const CUSTOM_KEY = "kpgFrenchCustomPapers.v1";
   const OFFICIAL_SOURCE_URL = "https://rcel2.enl.uoa.gr/kpg/gr_past_papers_fr.htm";
   const INLINE_FIELD_TOKEN = "_blank_";
+  const INLINE_CHOICE_TOKEN = "_choice_";
   const IMAGE_TITLE_PREFIX = "\u0395\u03b9\u03ba\u03cc\u03bd\u03b1";
   const VISUAL_ACTIVITY_PATTERN =
     /\b(?:photo|photos|image|images|carte|cartes|dessin|dessins|affiche|affiches|illustration|illustrations|document|documents|message|messages|texte|article|s[eé]rie|colonne|colonnes|ci-dessous|ci-apr[eè]s|observez|regardez)\b/i;
@@ -52,6 +53,10 @@
     writeAnswers(answers);
   }
 
+  function isInlineFieldKey(fieldKey) {
+    return fieldKey.includes(INLINE_FIELD_TOKEN) || fieldKey.includes(INLINE_CHOICE_TOKEN);
+  }
+
   function allowFullStorageReplace(duration = 1600) {
     allowStorageReplace = true;
     window.setTimeout(() => {
@@ -67,7 +72,7 @@
       if (!paperAnswers || typeof paperAnswers !== "object") return;
 
       Object.entries(paperAnswers).forEach(([fieldKey, fieldValue]) => {
-        if (!fieldKey.includes(INLINE_FIELD_TOKEN)) return;
+        if (!isInlineFieldKey(fieldKey)) return;
 
         if (!incoming[paperId] || typeof incoming[paperId] !== "object") {
           incoming[paperId] = {};
@@ -538,10 +543,46 @@
       }
 
       return true;
+    }).map((match) => ({
+      type: "blank",
+      token: match[0],
+      index: match.index ?? 0
+    }));
+  }
+
+  function findChoiceSquareMatches(sourceText) {
+    const matches = [];
+    const pattern = /\b([A-F])\.?([ \t]*)[\u25a1\uf0a8]/g;
+    let match;
+
+    while ((match = pattern.exec(sourceText)) !== null) {
+      const index = match.index + match[0].length - 1;
+      matches.push({
+        type: "choice",
+        token: sourceText[index],
+        index,
+        optionLabel: match[1]
+      });
+    }
+
+    return matches;
+  }
+
+  function findInlineWritableMatches(sourceText) {
+    const orderedMatches = [
+      ...findWritableBlankMatches(sourceText),
+      ...findChoiceSquareMatches(sourceText)
+    ].sort((left, right) => left.index - right.index || right.token.length - left.token.length);
+
+    let lastEnd = -1;
+    return orderedMatches.filter((match) => {
+      if (match.index < lastEnd) return false;
+      lastEnd = match.index + match.token.length;
+      return true;
     });
   }
 
-  function inlineFieldPrefix(textBlock, fallbackIndex) {
+    function inlineFieldPrefix(textBlock, fallbackIndex) {
     const answerField = textBlock.closest(".activity-card")?.querySelector(".activity-answer");
     if (answerField?.dataset.field) return answerField.dataset.field;
 
@@ -576,34 +617,66 @@
     return input;
   }
 
+  function isCheckedValue(value) {
+    return value === true || value === "true" || value === "1" || value === "x";
+  }
+
+  function createInlineChoiceField(textBlock, fieldKey, optionLabel, choiceNumber) {
+    const paperId = paperIdFor(textBlock);
+    const label = document.createElement("label");
+    label.className = "inline-choice-slot";
+
+    const input = document.createElement("input");
+    input.type = "checkbox";
+    input.className = "answer-field inline-choice-checkbox";
+    input.dataset.field = fieldKey;
+    input.checked = isCheckedValue(readInlineAnswer(paperId, fieldKey));
+    input.setAttribute("aria-label", `Choice ${optionLabel || choiceNumber}`);
+
+    const save = () => writeInlineAnswer(paperIdFor(input) || paperId, fieldKey, input.checked);
+    input.addEventListener("change", save);
+
+    label.append(input);
+    return label;
+  }
+
   function enhanceInlineBlanks(root = document) {
     root.querySelectorAll(".prompt-text.activity-text").forEach((textBlock, blockIndex) => {
       if (textBlock.dataset.inlineBlanksReady) return;
 
       const sourceText = textBlock.textContent ?? "";
-      const blankMatches = findWritableBlankMatches(sourceText);
+      const inlineMatches = findInlineWritableMatches(sourceText);
 
-      if (blankMatches.length === 0) {
+      if (inlineMatches.length === 0) {
         textBlock.dataset.inlineBlanksReady = "none";
         return;
       }
 
       const prefix = inlineFieldPrefix(textBlock, blockIndex);
       let lastIndex = 0;
+      let blankNumber = 0;
+      let choiceNumber = 0;
 
       textBlock.textContent = "";
       textBlock.dataset.inlineBlanksReady = "true";
 
-      blankMatches.forEach((match, blankIndex) => {
-        const token = match[0];
-        const index = match.index ?? 0;
-        const fieldKey = `${prefix}${INLINE_FIELD_TOKEN}${blankIndex + 1}`;
+      inlineMatches.forEach((match) => {
+        const { token, index } = match;
 
         if (index > lastIndex) {
           textBlock.append(document.createTextNode(sourceText.slice(lastIndex, index)));
         }
 
-        textBlock.append(createInlineBlankField(textBlock, fieldKey, token, blankIndex + 1));
+        if (match.type === "choice") {
+          choiceNumber += 1;
+          const fieldKey = `${prefix}${INLINE_CHOICE_TOKEN}${choiceNumber}`;
+          textBlock.append(createInlineChoiceField(textBlock, fieldKey, match.optionLabel, choiceNumber));
+        } else {
+          blankNumber += 1;
+          const fieldKey = `${prefix}${INLINE_FIELD_TOKEN}${blankNumber}`;
+          textBlock.append(createInlineBlankField(textBlock, fieldKey, token, blankNumber));
+        }
+
         lastIndex = index + token.length;
       });
 
@@ -613,7 +686,7 @@
     });
   }
 
-  function enhanceActivityAnswerFields(root = document) {
+    function enhanceActivityAnswerFields(root = document) {
     convertActivityDetails(root);
 
     root.querySelectorAll(".prompt-box > details").forEach((details) => {

@@ -72,6 +72,30 @@
   box-shadow: 0 2px 0 rgba(212, 61, 75, 0.16);
 }
 
+.activity-writing-sheet .inline-choice-slot {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  min-height: 18px;
+  margin: 0 5px 0 2px;
+  vertical-align: -3px;
+  cursor: pointer;
+}
+
+.activity-writing-sheet .inline-choice-checkbox {
+  width: 15px;
+  height: 15px;
+  margin: 0;
+  accent-color: var(--blue);
+  cursor: pointer;
+}
+
+.activity-writing-sheet .inline-choice-checkbox:focus-visible {
+  outline: 2px solid rgba(212, 61, 75, 0.75);
+  outline-offset: 2px;
+}
+
 .activity-writing-sheet .activity-media-grid {
   margin: 10px 0 14px;
   padding: 0;
