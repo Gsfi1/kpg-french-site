@@ -36,6 +36,37 @@
   white-space: pre-wrap;
 }
 
+.activity-writing-sheet .inline-answer-slot {
+  display: inline-block;
+  min-width: 84px;
+  max-width: min(280px, 76vw);
+  height: 1.55em;
+  margin: 0 3px;
+  padding: 0 4px 2px;
+  border: 0;
+  border-bottom: 2px solid rgba(29, 79, 159, 0.6);
+  border-radius: 0;
+  background: rgba(255, 255, 255, 0.72);
+  box-shadow: none;
+  color: #10203f;
+  font: inherit;
+  font-weight: 800;
+  line-height: 1.2;
+  vertical-align: baseline;
+}
+
+.activity-writing-sheet .inline-answer-slot:hover {
+  border-bottom-color: rgba(29, 79, 159, 0.82);
+  background: rgba(255, 255, 255, 0.9);
+}
+
+.activity-writing-sheet .inline-answer-slot:focus {
+  outline: none;
+  border-bottom-color: var(--red);
+  background: #fff;
+  box-shadow: 0 2px 0 rgba(212, 61, 75, 0.16);
+}
+
 .activity-writing-sheet .activity-media-grid {
   margin: 10px 0 14px;
   padding: 0;
