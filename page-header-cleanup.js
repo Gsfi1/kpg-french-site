@@ -67,6 +67,21 @@
 })();
 
 (() => {
+  function loadRecentPromptOverrides() {
+    if (document.querySelector("script[data-recent-prompts-2026-a]")) return;
+
+    const script = document.createElement("script");
+    script.src = "recent-prompts-2026-a-loader.js?v=1";
+    script.dataset.recentPrompts2026A = "true";
+    script.addEventListener("load", () => {
+      const select = document.querySelector("#paperSelect");
+      if (select?.value === "2026-05-a") {
+        select.dispatchEvent(new Event("change", { bubbles: true }));
+      }
+    });
+    document.head.append(script);
+  }
+
   const EMPTY_STATE_CLASS = "paper-empty-state";
   let userPickedPaper = false;
 
@@ -150,8 +165,16 @@
   }
 
   if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", startEmptyScreen, { once: true });
+    document.addEventListener(
+      "DOMContentLoaded",
+      () => {
+        loadRecentPromptOverrides();
+        startEmptyScreen();
+      },
+      { once: true }
+    );
   } else {
+    loadRecentPromptOverrides();
     startEmptyScreen();
   }
 })();
