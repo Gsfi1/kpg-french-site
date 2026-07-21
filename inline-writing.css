@@ -124,6 +124,9 @@
 }
 
 .side-panel .stats-block,
+.app-header .header-actions,
+.toolbar #addCustomBtn,
+.custom-form,
 .exam-viewer .viewer-tools,
 .paper-card > .answer-grid,
 .paper-card > .wide-label {
