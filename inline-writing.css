@@ -123,6 +123,7 @@
   font-weight: 800;
 }
 
+.exam-viewer .viewer-tools,
 .paper-card > .answer-grid,
 .paper-card > .wide-label {
   display: none !important;
