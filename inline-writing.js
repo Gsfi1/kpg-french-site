@@ -205,8 +205,9 @@
   function orderedUnique(values) {
     const result = [];
     values.forEach((value) => {
+      if (value === null || value === undefined || value === "") return;
       const number = Number(value);
-      if (Number.isFinite(number) && !result.includes(number)) result.push(number);
+      if (Number.isFinite(number) && number > 0 && !result.includes(number)) result.push(number);
     });
     return result;
   }
@@ -278,7 +279,7 @@
     return raw
       .split(",")
       .map((value) => Number(value.trim()))
-      .filter((value) => Number.isFinite(value));
+      .filter((value) => Number.isFinite(value) && value > 0);
   }
 
   function trailingNextPageHeader(text) {

@@ -647,8 +647,9 @@ function inferredOralPageNumbers(paperId, source, activity) {
 function orderedUnique(values) {
   const result = [];
   values.forEach((value) => {
+    if (value === null || value === undefined || value === "") return;
     const number = Number(value);
-    if (Number.isFinite(number) && !result.includes(number)) result.push(number);
+    if (Number.isFinite(number) && number > 0 && !result.includes(number)) result.push(number);
   });
   return result;
 }
@@ -665,7 +666,7 @@ function pageMarkersFor(text) {
     });
   }
 
-  return markers.filter((marker) => Number.isFinite(marker.page));
+  return markers.filter((marker) => Number.isFinite(marker.page) && marker.page > 0);
 }
 
 function pageAtPosition(markers, position) {
