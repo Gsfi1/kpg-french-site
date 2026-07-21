@@ -572,6 +572,27 @@
     return matches;
   }
 
+  function findChoiceLabelSequenceMatches(sourceText) {
+    const matches = [];
+    const pattern = /(^|[ \t])((?:[A-F]\.[ \t]*){2,6})(?=$|\r?\n)/gm;
+    let match;
+
+    while ((match = pattern.exec(sourceText)) !== null) {
+      const token = match[2];
+      const choices = Array.from(token.matchAll(/[A-F](?=\.)/g)).map((choiceMatch) => choiceMatch[0]);
+      if (choices.length < 2) continue;
+
+      matches.push({
+        type: "choiceGroup",
+        token,
+        index: match.index + match[1].length,
+        choices
+      });
+    }
+
+    return matches;
+  }
+
   function lineStartAt(text, index) {
     return text.lastIndexOf("\n", Math.max(0, index - 1)) + 1;
   }
@@ -625,6 +646,7 @@
     while ((match = itemPattern.exec(sourceText)) !== null) {
       const line = match[0];
       if (/[\u25a1\uf0a8]/.test(line)) continue;
+      if (/\b[A-F]\.(?:\s*[A-F]\.){1,5}\s*$/.test(line)) continue;
       matches.push({
         type: "choiceGroup",
         token: "",
@@ -640,6 +662,7 @@
     const orderedMatches = [
       ...findWritableBlankMatches(sourceText),
       ...findChoiceSquareMatches(sourceText),
+      ...findChoiceLabelSequenceMatches(sourceText),
       ...findGeneratedChoiceGroupMatches(sourceText)
     ].sort((left, right) => left.index - right.index || right.token.length - left.token.length);
 
