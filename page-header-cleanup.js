@@ -1,13 +1,33 @@
 (() => {
   function cleanTrailingHeaders(root = document) {
     root.querySelectorAll(".prompt-text.activity-text").forEach((textBlock) => {
-      if (textBlock.querySelector(".inline-answer-slot")) return;
-
       const sourceText = textBlock.textContent ?? "";
       const cleanText = sourceText.replace(/\n\s*Page\s+\d{1,2}\s*\n[^\n]*\s*$/, "").trimEnd();
-      if (cleanText !== sourceText) {
+      if (cleanText === sourceText) return;
+
+      if (!textBlock.querySelector(".inline-answer-slot")) {
         textBlock.textContent = cleanText;
+        return;
       }
+
+      let remaining = sourceText.length - cleanText.length;
+      Array.from(textBlock.childNodes)
+        .reverse()
+        .some((node) => {
+          if (remaining <= 0) return true;
+          if (node.nodeType !== Node.TEXT_NODE) return false;
+
+          const text = node.textContent ?? "";
+          if (text.length <= remaining) {
+            remaining -= text.length;
+            node.remove();
+            return false;
+          }
+
+          node.textContent = text.slice(0, text.length - remaining);
+          remaining = 0;
+          return true;
+        });
     });
   }
 
