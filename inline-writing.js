@@ -164,6 +164,13 @@
     requestAnimationFrame(() => autoGrow(field));
   }
 
+  function hideRemovedPanels() {
+    document.querySelectorAll(".stats-block").forEach((panel) => {
+      panel.hidden = true;
+      panel.style.setProperty("display", "none", "important");
+    });
+  }
+
   function convertActivityDetails(root = document) {
     root.querySelectorAll("details.activity-card").forEach((details) => {
       if (details.dataset.visibleActivityReady) return;
@@ -316,6 +323,7 @@
     installStorageGuard();
     installFreshExportHandler();
     installReplaceBypass();
+    hideRemovedPanels();
     chooseEmbeddedPromptPaper();
     enhanceActivityAnswerFields();
 
@@ -343,6 +351,7 @@
 
     let refreshes = 0;
     const refreshTimer = setInterval(() => {
+      hideRemovedPanels();
       chooseEmbeddedPromptPaper();
       enhanceActivityAnswerFields(paperList);
       refreshes += 1;
