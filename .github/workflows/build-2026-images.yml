@@ -8,6 +8,7 @@ on:
     paths:
       - ".github/workflows/build-2026-images.yml"
       - "scripts/build_2026_images.py"
+      - "scripts/fix_2026_builder_payload.py"
       - "paper-images-2026.js"
       - "app.js"
       - "inline-writing.js"
@@ -36,6 +37,9 @@ jobs:
       - name: Install Python dependencies
         run: python -m pip install --upgrade pip pdfplumber Pillow
 
+      - name: Patch builder payload
+        run: python scripts/fix_2026_builder_payload.py
+
       - name: Build images from official PDFs
         run: python scripts/build_2026_images.py
 
@@ -51,4 +55,4 @@ jobs:
             git push
           fi
 
-# codex-trigger: 2026-images
+# codex-trigger: 2026-images-v2
