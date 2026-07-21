@@ -50,6 +50,38 @@
     return new TextDecoder("utf-8").decode(decoded);
   }
 
+  function loadTextWithXhr(url) {
+    return new Promise((resolve, reject) => {
+      const request = new XMLHttpRequest();
+      request.open("GET", url, true);
+      request.responseType = "text";
+      request.onload = () => {
+        if (request.status >= 200 && request.status < 300) {
+          resolve(request.responseText);
+          return;
+        }
+        reject(new Error(`Could not load ${url} with status ${request.status}`));
+      };
+      request.onerror = () => reject(new Error(`Could not load ${url} with XMLHttpRequest`));
+      request.send();
+    });
+  }
+
+  async function loadText(url) {
+    try {
+      const response = await fetch(url, { cache: "no-store" });
+      if (!response.ok) throw new Error(`Could not load ${url}`);
+      return await response.text();
+    } catch (error) {
+      setStatus({
+        phase: "fetch-fallback",
+        message: String(error?.message || error),
+        currentUrl: url
+      });
+      return loadTextWithXhr(`${url}${url.includes("?") ? "&" : "?"}fallback=${Date.now()}`);
+    }
+  }
+
   function refreshSelectedPaper() {
     const select = document.querySelector("#paperSelect");
     if (select && paperIds.has(select.value)) {
@@ -71,10 +103,7 @@
         loadedChunks: chunks.length,
         currentUrl: url
       });
-      const chunk = await fetch(url, { cache: "no-store" }).then((response) => {
-        if (!response.ok) throw new Error(`Could not load ${url}`);
-        return response.text();
-      });
+      const chunk = await loadText(url);
       chunks.push(chunk);
     }
     return chunks;
