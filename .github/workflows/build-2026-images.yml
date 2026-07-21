@@ -15,6 +15,7 @@ on:
       - "scripts/fix_inline_checkbox_script.py"
       - "scripts/fix_runtime_cache_versions.py"
       - "scripts/add_generated_choice_rows.py"
+      - "scripts/add_choice_label_sequences.py"
       - "paper-images-2026.js"
       - "app.js"
       - "inline-writing.js"
@@ -64,6 +65,9 @@ jobs:
       - name: Add generated choice rows
         run: python scripts/add_generated_choice_rows.py
 
+      - name: Add choice label sequences
+        run: python scripts/add_choice_label_sequences.py
+
       - name: Commit generated images
         run: |
           git config user.name "github-actions[bot]"
@@ -76,4 +80,4 @@ jobs:
             git push
           fi
 
-# codex-trigger: generated-choice-rows-v1
+# codex-trigger: choice-label-sequences-v1
