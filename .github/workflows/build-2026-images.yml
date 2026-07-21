@@ -10,6 +10,7 @@ on:
       - "scripts/build_2026_images.py"
       - "scripts/fix_2026_builder_payload.py"
       - "scripts/fix_page_number_zero.py"
+      - "scripts/bump_cache_versions.py"
       - "paper-images-2026.js"
       - "app.js"
       - "inline-writing.js"
@@ -47,6 +48,9 @@ jobs:
       - name: Fix page number image sync
         run: python scripts/fix_page_number_zero.py
 
+      - name: Bump runtime cache
+        run: python scripts/bump_cache_versions.py
+
       - name: Commit generated images
         run: |
           git config user.name "github-actions[bot]"
@@ -59,4 +63,4 @@ jobs:
             git push
           fi
 
-# codex-trigger: 2026-images-v3
+# codex-trigger: 2026-images-v4
