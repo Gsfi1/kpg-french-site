@@ -7,6 +7,8 @@
   background:
     linear-gradient(90deg, rgba(212, 61, 75, 0.14) 0 3px, transparent 3px),
     linear-gradient(180deg, #fffefb, #fffdf8);
+  font-family: var(--app-font);
+  letter-spacing: 0;
 }
 
 .prompt-box > details > :not(summary),
@@ -33,6 +35,8 @@
   margin: 0 0 12px;
   padding: 0;
   overflow: visible;
+  font-family: var(--app-font);
+  letter-spacing: 0;
   white-space: pre-wrap;
 }
 
@@ -49,8 +53,9 @@
   background: rgba(255, 255, 255, 0.72);
   box-shadow: none;
   color: #10203f;
-  font: inherit;
+  font-family: var(--app-font);
   font-weight: 800;
+  letter-spacing: 0;
   line-height: 1.2;
   vertical-align: baseline;
 }
@@ -105,9 +110,10 @@
     );
   box-shadow: none;
   color: #10203f;
-  font: inherit;
+  font-family: var(--app-font);
   font-size: 1rem;
   font-weight: 700;
+  letter-spacing: 0;
   line-height: 32px;
   resize: vertical;
 }

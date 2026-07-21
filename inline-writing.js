@@ -176,17 +176,109 @@
 
   function pageNumbersInText(text) {
     const pages = [];
-    const pattern = /\b(?:Page|PAGE)\s+(\d{1,2})\b/g;
-    let match;
-
-    while ((match = pattern.exec(text)) !== null) {
-      const pageNumber = Number(match[1]);
+    const addPage = (pageNumber) => {
       if (Number.isFinite(pageNumber) && !pages.includes(pageNumber)) {
         pages.push(pageNumber);
       }
+    };
+    const rangePattern = /\bpages?\s+(\d{1,2})\s*(?:\u00e0|a|\u2013|\u2014|-|to)\s*(\d{1,2})\b/gi;
+    const singlePattern = /\bpage\s+(\d{1,2})\b/gi;
+    let match;
+
+    while ((match = rangePattern.exec(text)) !== null) {
+      const start = Number(match[1]);
+      const end = Number(match[2]);
+      if (!Number.isFinite(start) || !Number.isFinite(end)) continue;
+      const step = start <= end ? 1 : -1;
+      for (let pageNumber = start; pageNumber !== end + step; pageNumber += step) {
+        addPage(pageNumber);
+      }
+    }
+
+    while ((match = singlePattern.exec(text)) !== null) {
+      addPage(Number(match[1]));
     }
 
     return pages;
+  }
+
+  function orderedUnique(values) {
+    const result = [];
+    values.forEach((value) => {
+      const number = Number(value);
+      if (Number.isFinite(number) && !result.includes(number)) result.push(number);
+    });
+    return result;
+  }
+
+  function activityKeysFor(card) {
+    const keys = [];
+    const text = `${card.querySelector(".activity-title")?.textContent ?? ""}\n${card.querySelector(".prompt-text.activity-text")?.textContent ?? ""}`;
+    const pattern = /\bACTIVIT\S*\s+(\d+(?:\.\d+)?)/gi;
+    let match;
+
+    while ((match = pattern.exec(text)) !== null) {
+      if (!keys.includes(match[1])) keys.push(match[1]);
+    }
+
+    return keys;
+  }
+
+  function imageActivityKeys(entry) {
+    if (Array.isArray(entry.activities)) return entry.activities.map(String);
+    if (entry.activity) return [String(entry.activity)];
+    return [];
+  }
+
+  function imageMatchesActivity(entry, activityKeys) {
+    return imageActivityKeys(entry).some((key) => activityKeys.includes(key));
+  }
+
+  function inferredOralPageNumbers(paperId, source, activityKeys) {
+    if (!/epr4/i.test(source ?? "") || !/consignes/i.test(source ?? "")) return [];
+
+    const pages = [];
+    const addPage = (pageNumber) => {
+      if (Number.isFinite(pageNumber) && !pages.includes(pageNumber)) pages.push(pageNumber);
+    };
+
+    activityKeys.forEach((key) => {
+      const [major, minor] = key.split(".").map(Number);
+      if (!Number.isFinite(major)) return;
+
+      if (paperId === "2026-05-a" || paperId === "2026-05-b") {
+        if (major === 2 && minor >= 1 && minor <= 4) addPage(4 + minor);
+        if (major === 3 && minor >= 1 && minor <= 4) addPage(8 + minor);
+        return;
+      }
+
+      if (paperId === "2026-05-c") {
+        const mapping = {
+          "1.1": [5],
+          "1.2": [5],
+          "1.3": [5],
+          "2.1": [6],
+          "2.2": [6],
+          "2.3": [7],
+          "2.4": [8],
+          "3.1": [9],
+          "3.2": [10],
+          "3.3": [11],
+          "3.4": [12]
+        };
+        (mapping[key] ?? []).forEach(addPage);
+      }
+    });
+
+    return pages;
+  }
+
+    function storedPageNumbers(card) {
+    const raw = card.dataset.pdfPages ?? "";
+    return raw
+      .split(",")
+      .map((value) => Number(value.trim()))
+      .filter((value) => Number.isFinite(value));
   }
 
   function trailingNextPageHeader(text) {
@@ -212,20 +304,27 @@
     return Array.from(promptBox.children).filter((child) => child.tagName === "DETAILS");
   }
 
-  function inferActivityImageGroups(activityCards) {
+  function inferActivityImageGroups(activityCards, paperId, source) {
     let carryPage = null;
     let leadingPage = null;
 
     return activityCards.map((card, index) => {
       const text = card.querySelector(".prompt-text.activity-text")?.textContent ?? "";
-      let pages = pageNumbersInText(text);
+      const storedPages = storedPageNumbers(card);
+      const activityKeys = activityKeysFor(card);
+      let pages = storedPages.length > 0 ? [...storedPages] : pageNumbersInText(text);
+      pages = orderedUnique([
+        ...pages,
+        ...pageNumbersInText(card.querySelector(".activity-title")?.textContent ?? ""),
+        ...inferredOralPageNumbers(paperId, source, activityKeys)
+      ]);
 
       if (leadingPage && !pages.includes(leadingPage)) {
         pages = [leadingPage, ...pages];
       }
 
       const trailingPage = trailingNextPageHeader(text);
-      if (trailingPage && pages.length > 1) {
+      if (storedPages.length === 0 && trailingPage && pages.length > 1) {
         const trailingIndex = pages.lastIndexOf(trailingPage);
         if (trailingIndex > 0) {
           pages.splice(trailingIndex, 1);
@@ -252,6 +351,7 @@
         card,
         index,
         pages,
+        activityKeys,
         visualScore,
         answerable: Boolean(card.querySelector(".activity-answer-block"))
       };
@@ -333,23 +433,34 @@
     });
   }
 
-  function syncImagesForPromptPanel(panel, sourceImages) {
+  function syncImagesForPromptPanel(panel, sourceImages, paperId, source) {
     const activityCards = Array.from(panel.querySelectorAll(".activity-card"));
     if (activityCards.length === 0) return;
 
-    const groups = inferActivityImageGroups(activityCards);
+    const groups = inferActivityImageGroups(activityCards, paperId, source);
     groups.forEach((group) => {
+      group.card.dataset.pdfPages = group.pages.join(",");
+
       const assignedImages = [];
       group.pages.forEach((pageNumber) => {
-        if (ownerIndexForPage(groups, pageNumber) !== group.index) return;
-        assignedImages.push(...(sourceImages[String(pageNumber)] ?? []));
+        const pageImages = sourceImages[String(pageNumber)] ?? [];
+        const taggedImages = pageImages.some((entry) => imageActivityKeys(entry).length > 0);
+
+        if (taggedImages && group.activityKeys.length > 0) {
+          assignedImages.push(...pageImages.filter((entry) => imageMatchesActivity(entry, group.activityKeys)));
+          return;
+        }
+
+        if (!taggedImages && ownerIndexForPage(groups, pageNumber) === group.index) {
+          assignedImages.push(...pageImages);
+        }
       });
 
       renderSyncedImages(group.card, assignedImages);
     });
   }
 
-  function syncActivityImages(root = document) {
+    function syncActivityImages(root = document) {
     collectPaperCards(root).forEach((paperCard) => {
       const paperId = paperCard.dataset.id;
       const imagesBySource = window.paperImages?.[paperId];
@@ -366,7 +477,7 @@
           const sourceImages = imagesBySource[source];
           if (!sourceImages) return;
 
-          syncImagesForPromptPanel(panel, sourceImages);
+          syncImagesForPromptPanel(panel, sourceImages, paperId, source);
         });
       });
     });

@@ -400,6 +400,8 @@ function setupPrompts(node, paper) {
         const fieldKey = activityAnswerField(section, entry, index, activityIndex);
         const activityDetails = document.createElement("section");
         activityDetails.className = "activity-card";
+        activityDetails.dataset.source = entry.source ?? "";
+        activityDetails.dataset.pdfPages = (activity.pages ?? []).join(",");
 
         const activitySummary = document.createElement("h5");
         activitySummary.className = "activity-title";
@@ -524,32 +526,170 @@ function activityAnswerField(section, entry, entryIndex, activityIndex) {
 }
 
 function activityImagesFor(paperId, source, activity) {
+  if (activity.answerable === false) return [];
+
   const sourceImages = paperImages[paperId]?.[source] ?? {};
   const images = [];
+  const activityKeys = activityKeysFor(activity);
+  const pages = orderedUnique([
+    ...(activity.pages ?? []),
+    ...activityPageNumbers(activity.title ?? ""),
+    ...inferredOralPageNumbers(paperId, source, activity)
+  ]);
 
-  activityPageNumbers(activity.text).forEach((pageNumber) => {
-    images.push(...(sourceImages[String(pageNumber)] ?? []));
+  pages.forEach((pageNumber) => {
+    const pageImages = sourceImages[String(pageNumber)] ?? [];
+    const taggedImages = pageImages.some((entry) => imageActivityKeys(entry).length > 0);
+
+    if (taggedImages && activityKeys.length > 0) {
+      images.push(...pageImages.filter((entry) => imageMatchesActivity(entry, activityKeys)));
+      return;
+    }
+
+    if (!taggedImages) {
+      images.push(...pageImages);
+    }
   });
 
   return images;
 }
 
 function activityPageNumbers(text) {
-  const pages = new Set();
-  const pattern = /\b(?:Page|PAGE)\s+(\d{1,2})\b/g;
+  const pages = [];
+  const addPage = (pageNumber) => {
+    if (Number.isFinite(pageNumber) && !pages.includes(pageNumber)) {
+      pages.push(pageNumber);
+    }
+  };
+  const rangePattern = /\bpages?\s+(\d{1,2})\s*(?:\u00e0|a|\u2013|\u2014|-|to)\s*(\d{1,2})\b/gi;
+  const singlePattern = /\bpage\s+(\d{1,2})\b/gi;
+  let match;
+
+  while ((match = rangePattern.exec(text)) !== null) {
+    const start = Number(match[1]);
+    const end = Number(match[2]);
+    if (!Number.isFinite(start) || !Number.isFinite(end)) continue;
+    const step = start <= end ? 1 : -1;
+    for (let pageNumber = start; pageNumber !== end + step; pageNumber += step) {
+      addPage(pageNumber);
+    }
+  }
+
+  while ((match = singlePattern.exec(text)) !== null) {
+    addPage(Number(match[1]));
+  }
+
+  return pages;
+}
+
+function activityKeysFor(activity) {
+  const keys = [];
+  const pattern = /\bACTIVIT\S*\s+(\d+(?:\.\d+)?)/gi;
+  const text = `${activity.title ?? ""}\n${activity.text ?? ""}`;
   let match;
 
   while ((match = pattern.exec(text)) !== null) {
-    pages.add(Number(match[1]));
+    if (!keys.includes(match[1])) keys.push(match[1]);
   }
 
-  return [...pages];
+  return keys;
+}
+
+function imageActivityKeys(entry) {
+  if (Array.isArray(entry.activities)) return entry.activities.map(String);
+  if (entry.activity) return [String(entry.activity)];
+  return [];
+}
+
+function imageMatchesActivity(entry, activityKeys) {
+  return imageActivityKeys(entry).some((key) => activityKeys.includes(key));
+}
+
+function inferredOralPageNumbers(paperId, source, activity) {
+  if (!/epr4/i.test(source ?? "") || !/consignes/i.test(source ?? "")) return [];
+
+  const pages = [];
+  const addPage = (pageNumber) => {
+    if (Number.isFinite(pageNumber) && !pages.includes(pageNumber)) pages.push(pageNumber);
+  };
+
+  activityKeysFor(activity).forEach((key) => {
+    const [major, minor] = key.split(".").map(Number);
+    if (!Number.isFinite(major)) return;
+
+    if (paperId === "2026-05-a" || paperId === "2026-05-b") {
+      if (major === 2 && minor >= 1 && minor <= 4) addPage(4 + minor);
+      if (major === 3 && minor >= 1 && minor <= 4) addPage(8 + minor);
+      return;
+    }
+
+    if (paperId === "2026-05-c") {
+      const mapping = {
+        "1.1": [5],
+        "1.2": [5],
+        "1.3": [5],
+        "2.1": [6],
+        "2.2": [6],
+        "2.3": [7],
+        "2.4": [8],
+        "3.1": [9],
+        "3.2": [10],
+        "3.3": [11],
+        "3.4": [12]
+      };
+      (mapping[key] ?? []).forEach(addPage);
+    }
+  });
+
+  return pages;
+}
+
+function orderedUnique(values) {
+  const result = [];
+  values.forEach((value) => {
+    const number = Number(value);
+    if (Number.isFinite(number) && !result.includes(number)) result.push(number);
+  });
+  return result;
+}
+
+function pageMarkersFor(text) {
+  const markers = [];
+  const pattern = /\bpage\s+(\d{1,2})\b/gi;
+  let match;
+
+  while ((match = pattern.exec(text)) !== null) {
+    markers.push({
+      page: Number(match[1]),
+      start: match.index
+    });
+  }
+
+  return markers.filter((marker) => Number.isFinite(marker.page));
+}
+
+function pageAtPosition(markers, position) {
+  let currentPage = null;
+
+  markers.forEach((marker) => {
+    if (marker.start <= position) currentPage = marker.page;
+  });
+
+  return currentPage;
+}
+
+function pagesForActivity(markers, start, title) {
+  return orderedUnique([
+    pageAtPosition(markers, start),
+    ...activityPageNumbers(title)
+  ]);
 }
 
 function splitActivities(text) {
   const cleanText = text.trim();
   if (!cleanText) return [{ title: "Εκφώνηση", text: "" }];
 
+  const pageMarkers = pageMarkersFor(cleanText);
   const pattern = /(^|\n)\s*((?:CONSIGNES?\s+POUR\s+L\S*)?ACTIVIT\S*\s+\d+(?:\.\d+)?(?:[^\S\n]*[^\n]*)?)/gi;
   const matches = [...cleanText.matchAll(pattern)].map((match) => ({
     start: match.index + match[1].length,
@@ -567,6 +707,7 @@ function splitActivities(text) {
     activities.push({
       title: "Οδηγίες πριν τις activités",
       text: intro,
+      pages: pagesForActivity(pageMarkers, 0, intro),
       answerable: false
     });
   }
@@ -578,7 +719,8 @@ function splitActivities(text) {
 
     activities.push({
       title: match.title,
-      text: body || match.title
+      text: body || match.title,
+      pages: pagesForActivity(pageMarkers, match.start, match.title)
     });
   });
 
