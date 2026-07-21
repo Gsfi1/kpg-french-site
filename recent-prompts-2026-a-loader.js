@@ -3,8 +3,14 @@
   window.__kpgRecentPrompts2026ALoading = true;
 
   const chunkUrls = [
-    "recent-prompts-2026-a.gz.b64.1.txt?v=1",
-    "recent-prompts-2026-a.gz.b64.2.txt?v=1"
+    "recent-prompts-2026-a.gz.b64.01.txt?v=1",
+    "recent-prompts-2026-a.gz.b64.02.txt?v=1",
+    "recent-prompts-2026-a.gz.b64.03.txt?v=1",
+    "recent-prompts-2026-a.gz.b64.04.txt?v=1",
+    "recent-prompts-2026-a.gz.b64.05.txt?v=1",
+    "recent-prompts-2026-a.gz.b64.06.txt?v=1",
+    "recent-prompts-2026-a.gz.b64.07.txt?v=1",
+    "recent-prompts-2026-a.gz.b64.08.txt?v=1"
   ];
 
   async function decodeGzipBase64(base64Text) {
