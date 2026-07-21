@@ -1,11 +1,24 @@
 (() => {
   if (window.__kpgRecentPrompts2026BCLoading) return;
   window.__kpgRecentPrompts2026BCLoading = true;
-  window.__kpgRecentPrompts2026BCStatus = {
-    phase: "starting",
-    loadedChunks: 0,
-    updatedAt: new Date().toISOString()
-  };
+
+  function setStatus(status) {
+    const nextStatus = {
+      ...status,
+      updatedAt: new Date().toISOString()
+    };
+    window.__kpgRecentPrompts2026BCStatus = nextStatus;
+    if (document.documentElement) {
+      document.documentElement.dataset.kpgBcPhase = String(nextStatus.phase || "");
+      document.documentElement.dataset.kpgBcChunks = String(nextStatus.loadedChunks ?? "");
+      document.documentElement.dataset.kpgBcMessage = String(nextStatus.message || "");
+      document.documentElement.dataset.kpgBcHasB = String(nextStatus.hasB ?? "");
+      document.documentElement.dataset.kpgBcHasC = String(nextStatus.hasC ?? "");
+      document.documentElement.dataset.kpgBcSourceLength = String(nextStatus.sourceLength ?? "");
+    }
+  }
+
+  setStatus({ phase: "starting", loadedChunks: 0 });
 
   const paperIds = new Set(["2026-05-b", "2026-05-c"]);
   const chunkUrls = [
@@ -53,12 +66,11 @@
   async function loadChunks() {
     const chunks = [];
     for (const url of chunkUrls) {
-      window.__kpgRecentPrompts2026BCStatus = {
+      setStatus({
         phase: "fetching",
         loadedChunks: chunks.length,
-        currentUrl: url,
-        updatedAt: new Date().toISOString()
-      };
+        currentUrl: url
+      });
       const chunk = await fetch(url, { cache: "no-store" }).then((response) => {
         if (!response.ok) throw new Error(`Could not load ${url}`);
         return response.text();
@@ -70,37 +82,33 @@
 
   loadChunks()
     .then((chunks) => {
-      window.__kpgRecentPrompts2026BCStatus = {
+      setStatus({
         phase: "decoding",
-        loadedChunks: chunks.length,
-        updatedAt: new Date().toISOString()
-      };
+        loadedChunks: chunks.length
+      });
       return decodeGzipBase64(chunks.join(""));
     })
     .then((source) => {
-      window.__kpgRecentPrompts2026BCStatus = {
+      setStatus({
         phase: "evaluating",
         sourceLength: source.length,
         hasB: source.includes("2026-05-b"),
-        hasC: source.includes("2026-05-c"),
-        updatedAt: new Date().toISOString()
-      };
+        hasC: source.includes("2026-05-c")
+      });
       (0, eval)(source);
-      window.__kpgRecentPrompts2026BCStatus = {
+      setStatus({
         phase: "ready",
         hasB: Boolean(window.paperPrompts?.["2026-05-b"]),
-        hasC: Boolean(window.paperPrompts?.["2026-05-c"]),
-        updatedAt: new Date().toISOString()
-      };
+        hasC: Boolean(window.paperPrompts?.["2026-05-c"])
+      });
       refreshSelectedPaper();
     })
     .catch((error) => {
-      window.__kpgRecentPrompts2026BCStatus = {
+      setStatus({
         phase: "error",
         message: String(error?.message || error),
-        stack: String(error?.stack || ""),
-        updatedAt: new Date().toISOString()
-      };
+        stack: String(error?.stack || "")
+      });
       console.error("Could not load KPG 2026 B/C prompts.", error);
     });
 })();
