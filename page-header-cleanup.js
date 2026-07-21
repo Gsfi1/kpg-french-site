@@ -71,7 +71,7 @@
     if (document.querySelector("script[data-recent-prompts-2026-a]")) return;
 
     const script = document.createElement("script");
-    script.src = "recent-prompts-2026-a-loader.js?v=1";
+    script.src = "recent-prompts-2026-a-loader.js?v=2";
     script.dataset.recentPrompts2026A = "true";
     script.addEventListener("load", () => {
       const select = document.querySelector("#paperSelect");
