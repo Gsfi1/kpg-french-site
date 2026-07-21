@@ -1,5 +1,6 @@
 (() => {
   const FIELD_MIN_HEIGHT = 118;
+  const DEFAULT_PROMPT_PAPER_ID = "2014-05-a";
 
   function autoGrow(field) {
     field.style.height = "auto";
@@ -47,6 +48,21 @@
     });
   }
 
+  function chooseEmbeddedPromptPaper() {
+    const select = document.querySelector("#paperSelect");
+    if (!select || select.dataset.defaultPromptPaperReady) return;
+
+    const target = Array.from(select.options).find((option) => option.value === DEFAULT_PROMPT_PAPER_ID);
+    if (!target || select.value === DEFAULT_PROMPT_PAPER_ID) {
+      select.dataset.defaultPromptPaperReady = "true";
+      return;
+    }
+
+    select.dataset.defaultPromptPaperReady = "true";
+    select.value = DEFAULT_PROMPT_PAPER_ID;
+    select.dispatchEvent(new Event("change", { bubbles: true }));
+  }
+
   function enhanceActivityAnswerFields(root = document) {
     convertActivityDetails(root);
 
@@ -65,6 +81,7 @@
   }
 
   function startActivityAnswerFields() {
+    chooseEmbeddedPromptPaper();
     enhanceActivityAnswerFields();
     const paperList = document.querySelector("#paperList");
     if (!paperList) return;
@@ -90,6 +107,7 @@
 
     let refreshes = 0;
     const refreshTimer = setInterval(() => {
+      chooseEmbeddedPromptPaper();
       enhanceActivityAnswerFields(paperList);
       refreshes += 1;
       if (refreshes >= 12) clearInterval(refreshTimer);
