@@ -5,7 +5,7 @@
       const cleanText = sourceText.replace(/\n\s*Page\s+\d{1,2}\s*\n[^\n]*\s*$/, "").trimEnd();
       if (cleanText === sourceText) return;
 
-      if (!textBlock.querySelector(".inline-answer-slot")) {
+      if (!textBlock.querySelector(".inline-answer-slot, .inline-choice-checkbox")) {
         textBlock.textContent = cleanText;
         return;
       }
