@@ -5,6 +5,9 @@
   const CUSTOM_KEY = "kpgFrenchCustomPapers.v1";
   const OFFICIAL_SOURCE_URL = "https://rcel2.enl.uoa.gr/kpg/gr_past_papers_fr.htm";
   const INLINE_FIELD_TOKEN = "_blank_";
+  const IMAGE_TITLE_PREFIX = "\u0395\u03b9\u03ba\u03cc\u03bd\u03b1";
+  const VISUAL_ACTIVITY_PATTERN =
+    /\b(?:photo|photos|image|images|carte|cartes|dessin|dessins|affiche|affiches|illustration|illustrations|document|documents|message|messages|texte|article|s[eé]rie|colonne|colonnes|ci-dessous|ci-apr[eè]s|observez|regardez)\b/i;
 
   let allowStorageReplace = false;
 
@@ -171,6 +174,204 @@
     });
   }
 
+  function pageNumbersInText(text) {
+    const pages = [];
+    const pattern = /\b(?:Page|PAGE)\s+(\d{1,2})\b/g;
+    let match;
+
+    while ((match = pattern.exec(text)) !== null) {
+      const pageNumber = Number(match[1]);
+      if (Number.isFinite(pageNumber) && !pages.includes(pageNumber)) {
+        pages.push(pageNumber);
+      }
+    }
+
+    return pages;
+  }
+
+  function trailingNextPageHeader(text) {
+    const match = text.match(/\n\s*Page\s+(\d{1,2})\s*\n[^\n]*\s*$/);
+    if (!match) return null;
+
+    const pageNumber = Number(match[1]);
+    return Number.isFinite(pageNumber) ? pageNumber : null;
+  }
+
+  function collectPaperCards(root = document) {
+    const cards = [];
+    if (root.matches?.(".paper-card")) cards.push(root);
+    root.querySelectorAll?.(".paper-card").forEach((card) => cards.push(card));
+    if (cards.length === 0) {
+      document.querySelectorAll(".paper-card").forEach((card) => cards.push(card));
+    }
+
+    return [...new Set(cards)];
+  }
+
+  function directPromptPanels(promptBox) {
+    return Array.from(promptBox.children).filter((child) => child.tagName === "DETAILS");
+  }
+
+  function inferActivityImageGroups(activityCards) {
+    let carryPage = null;
+    let leadingPage = null;
+
+    return activityCards.map((card, index) => {
+      const text = card.querySelector(".prompt-text.activity-text")?.textContent ?? "";
+      let pages = pageNumbersInText(text);
+
+      if (leadingPage && !pages.includes(leadingPage)) {
+        pages = [leadingPage, ...pages];
+      }
+
+      const trailingPage = trailingNextPageHeader(text);
+      if (trailingPage && pages.length > 1) {
+        const trailingIndex = pages.lastIndexOf(trailingPage);
+        if (trailingIndex > 0) {
+          pages.splice(trailingIndex, 1);
+          leadingPage = trailingPage;
+        } else {
+          leadingPage = null;
+        }
+      } else {
+        leadingPage = null;
+      }
+
+      if (pages.length === 0 && carryPage) {
+        pages = [carryPage];
+      }
+
+      if (pages.length > 0) {
+        carryPage = pages[pages.length - 1];
+      }
+
+      const title = card.querySelector(".activity-title")?.textContent ?? "";
+      const visualScore = VISUAL_ACTIVITY_PATTERN.test(`${title}\n${text}`) ? 1 : 0;
+
+      return {
+        card,
+        index,
+        pages,
+        visualScore,
+        answerable: Boolean(card.querySelector(".activity-answer-block"))
+      };
+    });
+  }
+
+  function ownerIndexForPage(groups, pageNumber) {
+    const candidates = groups.filter((group) => group.pages.includes(pageNumber));
+    if (candidates.length === 0) return -1;
+
+    const answerable = candidates.filter((group) => group.answerable);
+    const pool = answerable.length > 0 ? answerable : candidates;
+    const visual = pool.filter((group) => group.visualScore > 0);
+    const ranked = (visual.length > 0 ? visual : pool)
+      .slice()
+      .sort((left, right) => right.visualScore - left.visualScore || left.index - right.index);
+
+    return ranked[0]?.index ?? -1;
+  }
+
+  function renderSyncedImages(card, imageEntries) {
+    let imageGrid = card.querySelector(".activity-media-grid");
+
+    if (imageEntries.length === 0) {
+      imageGrid?.remove();
+      return;
+    }
+
+    const signature = imageEntries.map((entry) => entry.src).join("|");
+    if (imageGrid?.dataset.syncedImageSignature === signature) return;
+
+    if (!imageGrid) {
+      imageGrid = document.createElement("div");
+      imageGrid.className = "activity-media-grid";
+
+      const sheet = card.querySelector(".activity-writing-sheet") ?? card;
+      const answerBlock = sheet.querySelector(".activity-answer-block");
+      if (answerBlock) {
+        sheet.insertBefore(imageGrid, answerBlock);
+      } else {
+        sheet.append(imageGrid);
+      }
+    }
+
+    imageGrid.dataset.syncedImageSignature = signature;
+    imageGrid.textContent = "";
+
+    imageEntries.forEach((imageEntry, imageIndex) => {
+      const imageTitle = `${IMAGE_TITLE_PREFIX} ${imageIndex + 1}`;
+      const figure = document.createElement("figure");
+      figure.className = "activity-image-card";
+
+      const imageButton = document.createElement("button");
+      imageButton.className = "activity-image-button";
+      imageButton.type = "button";
+      imageButton.setAttribute("aria-label", `Open ${imageTitle}`);
+
+      const image = document.createElement("img");
+      image.className = "activity-image";
+      image.src = imageEntry.src;
+      image.alt = imageTitle;
+      image.loading = "lazy";
+
+      const caption = document.createElement("figcaption");
+      caption.textContent = imageTitle;
+
+      imageButton.addEventListener("click", () => {
+        if (typeof window.openImageLightbox === "function") {
+          window.openImageLightbox(imageEntry.src, imageTitle);
+          return;
+        }
+
+        window.open(imageEntry.src, "_blank", "noopener");
+      });
+
+      imageButton.append(image);
+      figure.append(imageButton, caption);
+      imageGrid.append(figure);
+    });
+  }
+
+  function syncImagesForPromptPanel(panel, sourceImages) {
+    const activityCards = Array.from(panel.querySelectorAll(".activity-card"));
+    if (activityCards.length === 0) return;
+
+    const groups = inferActivityImageGroups(activityCards);
+    groups.forEach((group) => {
+      const assignedImages = [];
+      group.pages.forEach((pageNumber) => {
+        if (ownerIndexForPage(groups, pageNumber) !== group.index) return;
+        assignedImages.push(...(sourceImages[String(pageNumber)] ?? []));
+      });
+
+      renderSyncedImages(group.card, assignedImages);
+    });
+  }
+
+  function syncActivityImages(root = document) {
+    collectPaperCards(root).forEach((paperCard) => {
+      const paperId = paperCard.dataset.id;
+      const imagesBySource = window.paperImages?.[paperId];
+      const promptsBySection = window.paperPrompts?.[paperId];
+      if (!paperId || !imagesBySource || !promptsBySection) return;
+
+      paperCard.querySelectorAll(".prompt-box").forEach((promptBox) => {
+        const section = promptBox.dataset.prompt;
+        const entries = promptsBySection[section];
+        if (!Array.isArray(entries)) return;
+
+        directPromptPanels(promptBox).forEach((panel, entryIndex) => {
+          const source = entries[entryIndex]?.source;
+          const sourceImages = imagesBySource[source];
+          if (!sourceImages) return;
+
+          syncImagesForPromptPanel(panel, sourceImages);
+        });
+      });
+    });
+  }
+
   function convertActivityDetails(root = document) {
     root.querySelectorAll("details.activity-card").forEach((details) => {
       if (details.dataset.visibleActivityReady) return;
@@ -316,6 +517,7 @@
       prepareField(answerBlock);
     });
 
+    syncActivityImages(root);
     enhanceInlineBlanks(root);
   }
 
