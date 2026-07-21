@@ -1,6 +1,11 @@
 (() => {
   if (window.__kpgRecentPrompts2026BCLoading) return;
   window.__kpgRecentPrompts2026BCLoading = true;
+  window.__kpgRecentPrompts2026BCStatus = {
+    phase: "starting",
+    loadedChunks: 0,
+    updatedAt: new Date().toISOString()
+  };
 
   const paperIds = new Set(["2026-05-b", "2026-05-c"]);
   const chunkUrls = [
@@ -45,20 +50,57 @@
     );
   }
 
-  Promise.all(
-    chunkUrls.map((url) =>
-      fetch(url, { cache: "no-store" }).then((response) => {
+  async function loadChunks() {
+    const chunks = [];
+    for (const url of chunkUrls) {
+      window.__kpgRecentPrompts2026BCStatus = {
+        phase: "fetching",
+        loadedChunks: chunks.length,
+        currentUrl: url,
+        updatedAt: new Date().toISOString()
+      };
+      const chunk = await fetch(url, { cache: "no-store" }).then((response) => {
         if (!response.ok) throw new Error(`Could not load ${url}`);
         return response.text();
-      })
-    )
-  )
-    .then((chunks) => decodeGzipBase64(chunks.join("")))
+      });
+      chunks.push(chunk);
+    }
+    return chunks;
+  }
+
+  loadChunks()
+    .then((chunks) => {
+      window.__kpgRecentPrompts2026BCStatus = {
+        phase: "decoding",
+        loadedChunks: chunks.length,
+        updatedAt: new Date().toISOString()
+      };
+      return decodeGzipBase64(chunks.join(""));
+    })
     .then((source) => {
+      window.__kpgRecentPrompts2026BCStatus = {
+        phase: "evaluating",
+        sourceLength: source.length,
+        hasB: source.includes("2026-05-b"),
+        hasC: source.includes("2026-05-c"),
+        updatedAt: new Date().toISOString()
+      };
       (0, eval)(source);
+      window.__kpgRecentPrompts2026BCStatus = {
+        phase: "ready",
+        hasB: Boolean(window.paperPrompts?.["2026-05-b"]),
+        hasC: Boolean(window.paperPrompts?.["2026-05-c"]),
+        updatedAt: new Date().toISOString()
+      };
       refreshSelectedPaper();
     })
     .catch((error) => {
+      window.__kpgRecentPrompts2026BCStatus = {
+        phase: "error",
+        message: String(error?.message || error),
+        stack: String(error?.stack || ""),
+        updatedAt: new Date().toISOString()
+      };
       console.error("Could not load KPG 2026 B/C prompts.", error);
     });
 })();
