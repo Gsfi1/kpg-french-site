@@ -69,14 +69,6 @@ function sectionResourceFor(node, paper, resources, activeTarget = null) {
   const activePromptBox = activeTarget?.closest?.(".prompt-box") ?? node.querySelector(".prompt-box:not(.is-empty)");
   const activeDetails = activeTarget?.closest?.(".prompt-box > details") ?? activePromptBox?.querySelector("details");
   const promptLink = activeDetails?.querySelector(":scope > .prompt-link");
-
-  if (promptLink?.getAttribute("href")) {
-    return {
-      kind: "section-pdf",
-      href: promptLink.getAttribute("href")
-    };
-  }
-
   const section = activePromptBox?.dataset.prompt ?? "section1";
   const sectionNumber = section.match(/\d+/)?.[0] ?? "1";
   const sectionPdf = resources.find((resource) => sectionResourceMatches(resource, sectionNumber));
@@ -84,6 +76,14 @@ function sectionResourceFor(node, paper, resources, activeTarget = null) {
     return {
       ...sectionPdf,
       kind: "section-pdf"
+    };
+  }
+
+  const promptHref = promptLink?.getAttribute("href") ?? "";
+  if (promptHref) {
+    return {
+      kind: promptHref.toLowerCase().endsWith(".zip") ? "zip" : "section-pdf",
+      href: promptHref
     };
   }
 
@@ -96,6 +96,77 @@ function sectionResourceMatches(resource, sectionNumber) {
   if (!href.includes(`epr${sectionNumber}`)) return false;
   if (href.includes("reponses") || href.includes("script")) return false;
   return true;
+}
+
+function promptHrefForEntry(paper, section, entry) {
+  const href = entry.href ?? "";
+  if (!href) return "";
+
+  const localPdf = localPromptPdfHref(paper, section, entry);
+  if (href.toLowerCase().endsWith(".zip") && localPdf) return localPdf;
+  return href;
+}
+
+function localPromptPdfHref(paper, section, entry) {
+  const source = (entry.source ?? "").trim();
+  if (!source.toLowerCase().endsWith(".pdf")) return "";
+
+  const sectionNumber = section?.match(/\d+/)?.[0] ?? "";
+  if (sectionNumber && !source.toLowerCase().includes(`epr${sectionNumber}`)) return "";
+  if (/^[a-z][a-z0-9+.-]*:/i.test(source)) return source;
+  if (source.includes("/") || source.includes("\\")) return source.replace(/\\/g, "/");
+  return `assets/exams/${paper.id}/${source}`;
+}
+
+'''
+
+
+PROMPT_LINK_HELPERS = r'''function promptHrefForEntry(paper, section, entry) {
+  const href = entry.href ?? "";
+  if (!href) return "";
+
+  const localPdf = localPromptPdfHref(paper, section, entry);
+  if (href.toLowerCase().endsWith(".zip") && localPdf) return localPdf;
+  return href;
+}
+
+function localPromptPdfHref(paper, section, entry) {
+  const source = (entry.source ?? "").trim();
+  if (!source.toLowerCase().endsWith(".pdf")) return "";
+
+  const sectionNumber = section?.match(/\d+/)?.[0] ?? "";
+  if (sectionNumber && !source.toLowerCase().includes(`epr${sectionNumber}`)) return "";
+  if (/^[a-z][a-z0-9+.-]*:/i.test(source)) return source;
+  if (source.includes("/") || source.includes("\\")) return source.replace(/\\/g, "/");
+  return `assets/exams/${paper.id}/${source}`;
+}
+
+'''
+
+
+SECTION_RESOURCE_FOR_BLOCK = r'''function sectionResourceFor(node, paper, resources, activeTarget = null) {
+  const activePromptBox = activeTarget?.closest?.(".prompt-box") ?? node.querySelector(".prompt-box:not(.is-empty)");
+  const activeDetails = activeTarget?.closest?.(".prompt-box > details") ?? activePromptBox?.querySelector("details");
+  const promptLink = activeDetails?.querySelector(":scope > .prompt-link");
+  const section = activePromptBox?.dataset.prompt ?? "section1";
+  const sectionNumber = section.match(/\d+/)?.[0] ?? "1";
+  const sectionPdf = resources.find((resource) => sectionResourceMatches(resource, sectionNumber));
+  if (sectionPdf) {
+    return {
+      ...sectionPdf,
+      kind: "section-pdf"
+    };
+  }
+
+  const promptHref = promptLink?.getAttribute("href") ?? "";
+  if (promptHref) {
+    return {
+      kind: promptHref.toLowerCase().endsWith(".zip") ? "zip" : "section-pdf",
+      href: promptHref
+    };
+  }
+
+  return null;
 }
 
 '''
@@ -125,6 +196,48 @@ def patch_app() -> None:
             SETUP_RESOURCES_BLOCK,
         )
 
+    if (
+        "function sectionResourceFor(" in text
+        and 'const promptHref = promptLink?.getAttribute("href") ?? "";' not in text
+    ):
+        text = replace_function_block(
+            text,
+            "function sectionResourceFor(node, paper, resources, activeTarget = null) {",
+            "function sectionResourceMatches(resource, sectionNumber) {",
+            SECTION_RESOURCE_FOR_BLOCK,
+        )
+
+    if "function promptHrefForEntry(" not in text:
+        text = text.replace(
+            "function setupPrompts(node, paper) {",
+            PROMPT_LINK_HELPERS + "function setupPrompts(node, paper) {",
+            1,
+        )
+
+    if "const promptHref = promptHrefForEntry(paper, section, entry);" not in text:
+        text = text.replace(
+            '''      if (entry.href) {
+        const link = document.createElement("a");
+        link.className = "prompt-link";
+        link.href = entry.href;
+        link.target = "_blank";
+        link.rel = "noreferrer";
+        link.textContent = promptLinkText(entry.href);
+        details.append(link);
+      }''',
+            '''      const promptHref = promptHrefForEntry(paper, section, entry);
+      if (promptHref) {
+        const link = document.createElement("a");
+        link.className = "prompt-link";
+        link.href = promptHref;
+        link.target = "_blank";
+        link.rel = "noreferrer";
+        link.textContent = promptLinkText(promptHref);
+        details.append(link);
+      }''',
+            1,
+        )
+
     if 'resource.kind === "section-pdf"' not in text:
         text = text.replace(
             'function resourceActionLabel(resource) {\n  if (resource.kind === "audio")',
@@ -138,9 +251,10 @@ def patch_app() -> None:
 def patch_index() -> None:
     path = ROOT / "index.html"
     text = path.read_text(encoding="utf-8")
-    if "app.js?v=6" not in text:
-        text = text.replace("app.js?v=5", "app.js?v=6", 1)
-        text = text.replace("app.js?v=4", "app.js?v=6", 1)
+    if "app.js?v=7" not in text:
+        text = text.replace("app.js?v=6", "app.js?v=7", 1)
+        text = text.replace("app.js?v=5", "app.js?v=7", 1)
+        text = text.replace("app.js?v=4", "app.js?v=7", 1)
     path.write_text(text, encoding="utf-8")
 
 
