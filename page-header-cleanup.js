@@ -45,7 +45,6 @@
 
     cleanTrailingHeaders(target);
     hideNonAnswerPromptCards(target);
-    hideNonAnswerPromptCards(target);
 
     if (paperList) {
       let scheduled = false;
@@ -56,7 +55,6 @@
           scheduled = false;
           cleanTrailingHeaders(paperList);
           hideNonAnswerPromptCards(paperList);
-          hideNonAnswerPromptCards(paperList);
         });
       });
       observer.observe(paperList, { childList: true, subtree: true });
@@ -65,8 +63,12 @@
     const paperSelect = document.querySelector("#paperSelect");
     if (paperSelect) {
       paperSelect.addEventListener("change", () => {
-        setTimeout(() => cleanTrailingHeaders(target), 0);
-        setTimeout(() => cleanTrailingHeaders(target), 150);
+        [0, 150].forEach((delay) => {
+          setTimeout(() => {
+            cleanTrailingHeaders(target);
+            hideNonAnswerPromptCards(target);
+          }, delay);
+        });
       });
     }
   }
