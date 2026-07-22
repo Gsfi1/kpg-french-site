@@ -197,12 +197,13 @@ def patch_inline_js() -> None:
         "choice token",
     )
 
-    text = replace_once(
-        text,
-        "    writeAnswers(answers);\n  }\n\n  function allowFullStorageReplace",
-        "    writeAnswers(answers);\n  }\n\n  function isInlineFieldKey(fieldKey) {\n    return fieldKey.includes(INLINE_FIELD_TOKEN) || fieldKey.includes(INLINE_CHOICE_TOKEN);\n  }\n\n  function allowFullStorageReplace",
-        "inline field helper",
-    )
+    if "function isInlineFieldKey(fieldKey)" not in text:
+        text = replace_once(
+            text,
+            "    writeAnswers(answers);\n  }\n\n  function allowFullStorageReplace",
+            "    writeAnswers(answers);\n  }\n\n  function isInlineFieldKey(fieldKey) {\n    return fieldKey.includes(INLINE_FIELD_TOKEN) || fieldKey.includes(INLINE_CHOICE_TOKEN);\n  }\n\n  function allowFullStorageReplace",
+            "inline field helper",
+        )
 
     text = replace_once(
         text,
