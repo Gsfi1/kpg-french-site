@@ -6,6 +6,13 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 
 
+INLINE_WRITABLE_HELPER = (
+    "  function hasInlineWritableFields(textBlock) {\n"
+    "    return Boolean(textBlock.querySelector(\".inline-answer-slot, .inline-choice-checkbox, .inline-match-slot\"));\n"
+    "  }\n\n"
+)
+
+
 def patch_cleanup() -> None:
     path = ROOT / "page-header-cleanup.js"
     text = path.read_text(encoding="utf-8")
@@ -22,14 +29,18 @@ def patch_inline_reprocess() -> None:
     text = path.read_text(encoding="utf-8")
 
     if "function hasInlineWritableFields(textBlock)" not in text:
-        text = text.replace(
-            "  function cleanTrailingPageHeaders(root = document) {",
-            "  function hasInlineWritableFields(textBlock) {\n"
-            "    return Boolean(textBlock.querySelector(\".inline-answer-slot, .inline-choice-checkbox, .inline-match-slot\"));\n"
-            "  }\n\n"
-            "  function cleanTrailingPageHeaders(root = document) {",
-            1,
-        )
+        if "  function cleanTrailingPageHeaders(root = document) {" in text:
+            text = text.replace(
+                "  function cleanTrailingPageHeaders(root = document) {",
+                INLINE_WRITABLE_HELPER + "  function cleanTrailingPageHeaders(root = document) {",
+                1,
+            )
+        else:
+            text = text.replace(
+                "  function enhanceInlineBlanks(root = document) {",
+                INLINE_WRITABLE_HELPER + "  function enhanceInlineBlanks(root = document) {",
+                1,
+            )
 
     text = text.replace(
         '      if (textBlock.dataset.inlineBlanksReady === "true") return;',
