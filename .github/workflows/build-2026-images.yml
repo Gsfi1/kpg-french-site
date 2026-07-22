@@ -17,6 +17,7 @@ on:
       - "scripts/add_generated_choice_rows.py"
       - "scripts/add_choice_label_sequences.py"
       - "scripts/fix_choice_cleanup.py"
+      - "scripts/fix_context_images.py"
       - "scripts/add_section_pdf_links.py"
       - "paper-images-2026.js"
       - "app.js"
@@ -74,11 +75,17 @@ jobs:
       - name: Preserve choice cleanup
         run: python scripts/fix_choice_cleanup.py
 
+      - name: Add context image mode
+        run: python scripts/fix_context_images.py
+
       - name: Add section PDF links
         run: python scripts/add_section_pdf_links.py
 
       - name: Preserve matching answer fields
         run: python scripts/fix_choice_cleanup.py
+
+      - name: Preserve context image mode
+        run: python scripts/fix_context_images.py
 
       - name: Commit generated images
         run: |
@@ -92,4 +99,4 @@ jobs:
             git push
           fi
 
-# codex-trigger: section-pdf-links-v1
+# codex-trigger: context-images-v1
