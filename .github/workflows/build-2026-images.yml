@@ -17,6 +17,7 @@ on:
       - "scripts/add_generated_choice_rows.py"
       - "scripts/add_choice_label_sequences.py"
       - "scripts/fix_choice_cleanup.py"
+      - "scripts/add_section_pdf_links.py"
       - "paper-images-2026.js"
       - "app.js"
       - "inline-writing.js"
@@ -73,6 +74,9 @@ jobs:
       - name: Preserve choice cleanup
         run: python scripts/fix_choice_cleanup.py
 
+      - name: Add section PDF links
+        run: python scripts/add_section_pdf_links.py
+
       - name: Commit generated images
         run: |
           git config user.name "github-actions[bot]"
@@ -85,4 +89,4 @@ jobs:
             git push
           fi
 
-# codex-trigger: preserve-choice-cleanup-v1
+# codex-trigger: section-pdf-links-v1
