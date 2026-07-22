@@ -950,12 +950,14 @@
 
   function enhanceInlineBlanks(root = document) {
     root.querySelectorAll(".prompt-text.activity-text").forEach((textBlock, blockIndex) => {
-      if (textBlock.dataset.inlineBlanksReady) return;
+      const readyState = textBlock.dataset.inlineBlanksReady;
+      if (readyState && (readyState !== "true" || hasInlineWritableFields(textBlock))) return;
 
       const sourceText = textBlock.textContent ?? "";
       const inlineMatches = findInlineWritableMatches(sourceText);
+      const hasWritableMatches = inlineMatches.some((match) => match.type !== "remove");
 
-      if (inlineMatches.length === 0) {
+      if (inlineMatches.length === 0 || !hasWritableMatches) {
         textBlock.dataset.inlineBlanksReady = "none";
         return;
       }
