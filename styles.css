@@ -853,6 +853,27 @@ progress::-moz-progress-bar {
   line-height: 1.35;
 }
 
+.activity-media-grid.activity-context-media {
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+  gap: 12px;
+  padding: 0 10px 12px;
+}
+
+.activity-context-image-card {
+  border-color: rgba(29, 79, 159, 0.16);
+  background: rgba(255, 255, 255, 0.74);
+  box-shadow: 0 8px 18px rgba(19, 28, 50, 0.04);
+}
+
+.activity-context-media .activity-image {
+  max-height: 360px;
+  background: #fff;
+}
+
+.activity-context-media .activity-image-card figcaption {
+  display: none;
+}
+
 .image-lightbox[hidden] {
   display: none;
 }

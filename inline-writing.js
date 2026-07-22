@@ -389,8 +389,9 @@
       return;
     }
 
-    const imageTitles = activityImageTitles(card, imageEntries.length);
-    const signature = `${imageEntries.map((entry) => entry.src).join("|")}::${imageTitles.join(",")}`;
+    const contextMode = imagesAreContextForActivity(card, imageEntries);
+    const imageTitles = contextMode ? [] : activityImageTitles(card, imageEntries.length);
+    const signature = `${contextMode ? "context" : "choices"}::${imageEntries.map((entry) => entry.src).join("|")}::${imageTitles.join(",")}`;
     if (imageGrid?.dataset.syncedImageSignature === signature) return;
 
     if (!imageGrid) {
@@ -407,12 +408,13 @@
     }
 
     imageGrid.dataset.syncedImageSignature = signature;
+    imageGrid.classList.toggle("activity-context-media", contextMode);
     imageGrid.textContent = "";
 
     imageEntries.forEach((imageEntry, imageIndex) => {
-      const imageTitle = imageTitles[imageIndex] ?? `${IMAGE_TITLE_PREFIX} ${imageIndex + 1}`;
+      const imageTitle = contextMode ? contextImageTitle(imageIndex) : imageTitles[imageIndex] ?? `${IMAGE_TITLE_PREFIX} ${imageIndex + 1}`;
       const figure = document.createElement("figure");
-      figure.className = "activity-image-card";
+      figure.className = contextMode ? "activity-image-card activity-context-image-card" : "activity-image-card";
 
       const imageButton = document.createElement("button");
       imageButton.className = "activity-image-button";
@@ -438,7 +440,11 @@
       });
 
       imageButton.append(image);
-      figure.append(imageButton, caption);
+      if (contextMode) {
+        figure.append(imageButton);
+      } else {
+        figure.append(imageButton, caption);
+      }
       imageGrid.append(figure);
     });
   }
@@ -490,6 +496,33 @@
     }
 
     return [];
+  }
+
+  function contextImageTitle(imageIndex) {
+    return `\u0395\u03b9\u03ba\u03cc\u03bd\u03b1 \u03ba\u03b5\u03b9\u03bc\u03ad\u03bd\u03bf\u03c5 ${imageIndex + 1}`;
+  }
+
+  function explicitVisualChoiceCue(text) {
+    return /\b(?:relie|reliez|relier|associe|associez|associer|correspondre|de quelles photos|quelle carte|quelles? images?|quels? documents?|messages? ci-dessous|documents? ci-dessous|photos? parle|cartes?\s*\([A-H]\s*-\s*[A-H]\)|en trop|atelier|ateliers|observez|regardez)\b/i.test(text)
+      || /(?:\u03a4\u03b1\u03af\u03c1\u03b9\u03b1\u03be\u03b5|\u0391\u03bd\u03c4\u03b9\u03c3\u03c4\u03bf\u03af\u03c7\u03b9\u03c3\u03b5|\u0393\u03b9\u03b1 \u03c0\u03bf\u03b9\u03b5\u03c2 \u03c6\u03c9\u03c4\u03bf\u03b3\u03c1\u03b1\u03c6\u03af\u03b5\u03c2|\u03a0\u03bf\u03b9\u03b1 \u03ba\u03ac\u03c1\u03c4\u03b1|\u03a3\u03b5 \u03c0\u03bf\u03b9\u03bf \u03b5\u03c1\u03b3\u03b1\u03c3\u03c4\u03ae\u03c1\u03b9)/i.test(text);
+  }
+
+  function textComprehensionCue(text) {
+    return /\b(?:Vrai|Faux|Ce n[\u2019']est pas dit|texte|article)\b/i.test(text)
+      || /(?:\u03a3\u03c9\u03c3\u03c4\u03cc|\u039b\u03ac\u03b8\u03bf\u03c2|\u0394\u03b5\u03bd \u03c4\u03bf \u03bb\u03ad\u03b5\u03b9|\u03ba\u03b5\u03af\u03bc\u03b5\u03bd\u03bf)/i.test(text);
+  }
+
+  function imagesAreActivityOptions(card, imageCount) {
+    const text = `${card.querySelector(".activity-title")?.textContent ?? ""}\n${card.querySelector(".prompt-text.activity-text")?.textContent ?? ""}`;
+    if (explicitVisualChoiceCue(text)) return true;
+    if (textComprehensionCue(text)) return false;
+    if (trailingNumberedItemLabels(text).length === imageCount) return true;
+    if (visualOptionLabels(text, imageCount).length === imageCount) return true;
+    return false;
+  }
+
+  function imagesAreContextForActivity(card, imageEntries) {
+    return imageEntries.length > 0 && !imagesAreActivityOptions(card, imageEntries.length);
   }
 
   function syncImagesForPromptPanel(panel, sourceImages, paperId, source) {
