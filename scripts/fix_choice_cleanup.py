@@ -81,6 +81,12 @@ def patch_inline_reprocess() -> None:
             1,
         )
 
+    text = text.replace(
+        "    const hasGreekMatching = /αντιστοιχ|αντιστοίχ|ταιριαξ|ταίριαξ/i.test(text);",
+        "    const hasGreekMatching = /αντιστοίχισε|αντιστοιχισε|αντιστοίχιση|αντιστοιχιση|ταίριαξε|ταιριαξε/i.test(text);",
+        1,
+    )
+
     if 'card && !card.querySelector(".activity-answer-block")' not in text:
         text = text.replace(
             '    root.querySelectorAll(".prompt-text.activity-text").forEach((textBlock, blockIndex) => {\n'
@@ -118,12 +124,13 @@ def patch_index() -> None:
     text = path.read_text(encoding="utf-8")
     if "page-header-cleanup.js?v=10" not in text:
         text = text.replace("page-header-cleanup.js?v=9", "page-header-cleanup.js?v=10", 1)
-    if "inline-writing.js?v=25" not in text:
-        text = text.replace("inline-writing.js?v=24", "inline-writing.js?v=25", 1)
-        text = text.replace("inline-writing.js?v=23", "inline-writing.js?v=25", 1)
-        text = text.replace("inline-writing.js?v=22", "inline-writing.js?v=25", 1)
-        text = text.replace("inline-writing.js?v=21", "inline-writing.js?v=25", 1)
-        text = text.replace("inline-writing.js?v=20", "inline-writing.js?v=25", 1)
+    if "inline-writing.js?v=26" not in text:
+        text = text.replace("inline-writing.js?v=25", "inline-writing.js?v=26", 1)
+        text = text.replace("inline-writing.js?v=24", "inline-writing.js?v=26", 1)
+        text = text.replace("inline-writing.js?v=23", "inline-writing.js?v=26", 1)
+        text = text.replace("inline-writing.js?v=22", "inline-writing.js?v=26", 1)
+        text = text.replace("inline-writing.js?v=21", "inline-writing.js?v=26", 1)
+        text = text.replace("inline-writing.js?v=20", "inline-writing.js?v=26", 1)
     path.write_text(text, encoding="utf-8")
 
 
