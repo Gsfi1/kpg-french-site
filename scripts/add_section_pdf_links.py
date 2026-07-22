@@ -173,6 +173,110 @@ SECTION_RESOURCE_FOR_BLOCK = r'''function sectionResourceFor(node, paper, resour
 '''
 
 
+APP_IMAGE_TITLE_HELPERS = r'''function activityImageTitles(activity, imageCount) {
+  const text = activity?.text ?? "";
+  const numberedLabels = trailingNumberedItemLabels(text);
+  if (numberedLabels.length === imageCount) return numberedLabels;
+
+  const optionLabels = visualOptionLabels(text, imageCount);
+  if (optionLabels.length === imageCount) return optionLabels;
+
+  return [];
+}
+
+function trailingNumberedItemLabels(text) {
+  const footerIndex = text.search(/\n\s*Nivea(?:u|ux)\b/i);
+  const body = footerIndex >= 0 ? text.slice(0, footerIndex) : text;
+  const lines = body
+    .split(/\n/)
+    .map((line) => line.trim())
+    .filter(Boolean);
+  const labelLines = [];
+
+  for (let index = lines.length - 1; index >= 0; index -= 1) {
+    const line = lines[index].replace(/\s+/g, " ");
+    if (/^(?:\d{1,2}[a-z]?\s*[.)]\s*)+$/i.test(line)) {
+      labelLines.unshift(line);
+      continue;
+    }
+
+    if (labelLines.length > 0) break;
+  }
+
+  return labelLines.join(" ").match(/\d{1,2}[a-z]?/gi) ?? [];
+}
+
+function visualOptionLabels(text, imageCount) {
+  const lines = text
+    .split(/\n/)
+    .map((line) => line.trim())
+    .filter(Boolean);
+
+  for (const line of lines) {
+    if (!/^(?:[A-H]\s*[.)]?\s*)+$/i.test(line)) continue;
+
+    const labels = line.match(/[A-H]/gi) ?? [];
+    if (labels.length === imageCount) return labels.map((label) => label.toUpperCase());
+  }
+
+  return [];
+}
+
+'''
+
+
+INLINE_IMAGE_TITLE_HELPERS = r'''  function activityImageTitles(card, imageCount) {
+    const text = card.querySelector(".prompt-text.activity-text")?.textContent ?? "";
+    const numberedLabels = trailingNumberedItemLabels(text);
+    if (numberedLabels.length === imageCount) return numberedLabels;
+
+    const optionLabels = visualOptionLabels(text, imageCount);
+    if (optionLabels.length === imageCount) return optionLabels;
+
+    return [];
+  }
+
+  function trailingNumberedItemLabels(text) {
+    const footerIndex = text.search(/\n\s*Nivea(?:u|ux)\b/i);
+    const body = footerIndex >= 0 ? text.slice(0, footerIndex) : text;
+    const lines = body
+      .split(/\n/)
+      .map((line) => line.trim())
+      .filter(Boolean);
+    const labelLines = [];
+
+    for (let index = lines.length - 1; index >= 0; index -= 1) {
+      const line = lines[index].replace(/\s+/g, " ");
+      if (/^(?:\d{1,2}[a-z]?\s*[.)]\s*)+$/i.test(line)) {
+        labelLines.unshift(line);
+        continue;
+      }
+
+      if (labelLines.length > 0) break;
+    }
+
+    return labelLines.join(" ").match(/\d{1,2}[a-z]?/gi) ?? [];
+  }
+
+  function visualOptionLabels(text, imageCount) {
+    const lines = text
+      .split(/\n/)
+      .map((line) => line.trim())
+      .filter(Boolean);
+
+    for (const line of lines) {
+      if (!/^(?:[A-H]\s*[.)]?\s*)+$/i.test(line)) continue;
+
+      const labels = line.match(/[A-H]/gi) ?? [];
+      if (labels.length === imageCount) return labels.map((label) => label.toUpperCase());
+    }
+
+    return [];
+  }
+
+'''
+
+
 def replace_function_block(text: str, start: str, end: str, replacement: str) -> str:
     start_index = text.index(start)
     end_index = text.index(end, start_index)
@@ -246,16 +350,67 @@ def patch_app() -> None:
             1,
         )
 
+    if "const imageTitles = activityImageTitles(activity, imageEntries.length);" not in text:
+        text = text.replace(
+            "          imageEntries.forEach((imageEntry, imageIndex) => {\n"
+            "            const imageTitle = `\u0395\u03b9\u03ba\u03cc\u03bd\u03b1 ${imageIndex + 1}`;",
+            "          const imageTitles = activityImageTitles(activity, imageEntries.length);\n\n"
+            "          imageEntries.forEach((imageEntry, imageIndex) => {\n"
+            "            const imageTitle = imageTitles[imageIndex] ?? `\\u0395\\u03b9\\u03ba\\u03cc\\u03bd\\u03b1 ${imageIndex + 1}`;",
+            1,
+        )
+
+    if "function activityImageTitles(activity, imageCount)" not in text:
+        text = text.replace(
+            "function activityPageNumbers(text) {",
+            APP_IMAGE_TITLE_HELPERS + "function activityPageNumbers(text) {",
+            1,
+        )
+
+    path.write_text(text, encoding="utf-8")
+
+
+def patch_inline_writing() -> None:
+    path = ROOT / "inline-writing.js"
+    text = path.read_text(encoding="utf-8")
+
+    if "const imageTitles = activityImageTitles(card, imageEntries.length);" not in text:
+        text = text.replace(
+            '    const signature = imageEntries.map((entry) => entry.src).join("|");',
+            '    const imageTitles = activityImageTitles(card, imageEntries.length);\n'
+            '    const signature = `${imageEntries.map((entry) => entry.src).join("|")}::${imageTitles.join(",")}`;',
+            1,
+        )
+
+        text = text.replace(
+            "      const imageTitle = `${IMAGE_TITLE_PREFIX} ${imageIndex + 1}`;",
+            "      const imageTitle = imageTitles[imageIndex] ?? `${IMAGE_TITLE_PREFIX} ${imageIndex + 1}`;",
+            1,
+        )
+
+    if "function activityImageTitles(card, imageCount)" not in text:
+        text = text.replace(
+            "  function syncImagesForPromptPanel(panel, sourceImages, paperId, source) {",
+            INLINE_IMAGE_TITLE_HELPERS + "  function syncImagesForPromptPanel(panel, sourceImages, paperId, source) {",
+            1,
+        )
+
     path.write_text(text, encoding="utf-8")
 
 
 def patch_index() -> None:
     path = ROOT / "index.html"
     text = path.read_text(encoding="utf-8")
-    if "app.js?v=7" not in text:
-        text = text.replace("app.js?v=6", "app.js?v=7", 1)
-        text = text.replace("app.js?v=5", "app.js?v=7", 1)
-        text = text.replace("app.js?v=4", "app.js?v=7", 1)
+    if "app.js?v=8" not in text:
+        text = text.replace("app.js?v=7", "app.js?v=8", 1)
+        text = text.replace("app.js?v=6", "app.js?v=8", 1)
+        text = text.replace("app.js?v=5", "app.js?v=8", 1)
+        text = text.replace("app.js?v=4", "app.js?v=8", 1)
+    if "inline-writing.js?v=20" not in text:
+        text = text.replace("inline-writing.js?v=19", "inline-writing.js?v=20", 1)
+        text = text.replace("inline-writing.js?v=14", "inline-writing.js?v=20", 1)
+        text = text.replace("inline-writing.js?v=13", "inline-writing.js?v=20", 1)
+        text = text.replace("inline-writing.js?v=12", "inline-writing.js?v=20", 1)
     path.write_text(text, encoding="utf-8")
 
 
@@ -275,6 +430,7 @@ def copy_extracted_section_pdfs() -> None:
 
 def main() -> None:
     patch_app()
+    patch_inline_writing()
     patch_index()
     copy_extracted_section_pdfs()
 
