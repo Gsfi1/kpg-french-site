@@ -32,16 +32,55 @@ CHOICE_LABEL_SEQUENCE_HELPER = r'''function findChoiceLabelSequenceMatches(sourc
 
 CHOICE_HEADER_LINE_HELPER = r'''function findChoiceHeaderLineMatches(sourceText) {
     const matches = [];
-    const pattern = /^\s*(?:[A-F](?:\s+[A-F]){1,7})\s*(?:\r?\n)?/gm;
-    let match;
+    const labelMap = {
+      Α: "A",
+      Β: "B",
+      Γ: "C",
+      Δ: "D",
+      Ε: "E",
+      Ζ: "F"
+    };
+    const linePattern = /[^\n]*(?:\n|$)/g;
+    let block = [];
 
-    while ((match = pattern.exec(sourceText)) !== null) {
-      matches.push({
-        type: "remove",
-        token: match[0],
-        index: match.index
-      });
+    const flushBlock = () => {
+      if (block.length === 0) return;
+
+      const labels = block.flatMap((line) => line.labels);
+      const uniqueLabels = new Set(labels);
+      const shouldRemove = uniqueLabels.size >= 2 && (block.length > 1 || labels.length > 1);
+      if (shouldRemove) {
+        matches.push({
+          type: "remove",
+          token: block.map((line) => line.token).join(""),
+          index: block[0].index
+        });
+      }
+
+      block = [];
+    };
+
+    let match;
+    while ((match = linePattern.exec(sourceText)) !== null) {
+      const token = match[0];
+      if (!token) break;
+
+      const content = token.replace(/\r?\n$/, "");
+      const labelMatches = Array.from(content.matchAll(/[A-FΑΒΓΔΕΖ]\.?/g));
+      const isChoiceOnlyLine = labelMatches.length > 0 && content.replace(/[A-FΑΒΓΔΕΖ]\.?/g, "").trim() === "";
+
+      if (isChoiceOnlyLine) {
+        block.push({
+          token,
+          index: match.index,
+          labels: labelMatches.map((labelMatch) => labelMap[labelMatch[0].replace(".", "")] ?? labelMatch[0].replace(".", ""))
+        });
+      } else {
+        flushBlock();
+      }
     }
+
+    flushBlock();
 
     return matches;
   }
@@ -66,6 +105,10 @@ def patch_inline_js() -> None:
             "  " + CHOICE_HEADER_LINE_HELPER + "function lineStartAt(text, index) {",
             1,
         )
+    elif "const labelMap = {" not in text:
+        start = text.index("  function findChoiceHeaderLineMatches(")
+        end = text.index("  function lineStartAt(text, index) {", start)
+        text = text[:start] + "  " + CHOICE_HEADER_LINE_HELPER + text[end:]
 
     line_skip = "      if (/\\b[A-F]\\.(?:\\s*[A-F]\\.){1,5}\\s*$/.test(line)) continue;"
     if line_skip not in text:
@@ -138,10 +181,11 @@ def patch_inline_js() -> None:
 def patch_index() -> None:
     path = ROOT / "index.html"
     text = path.read_text(encoding="utf-8")
-    if "inline-writing.js?v=17" not in text:
-        text = text.replace("inline-writing.js?v=16", "inline-writing.js?v=17", 1)
-        text = text.replace("inline-writing.js?v=15", "inline-writing.js?v=17", 1)
-        text = text.replace("inline-writing.js?v=14", "inline-writing.js?v=17", 1)
+    if "inline-writing.js?v=18" not in text:
+        text = text.replace("inline-writing.js?v=17", "inline-writing.js?v=18", 1)
+        text = text.replace("inline-writing.js?v=16", "inline-writing.js?v=18", 1)
+        text = text.replace("inline-writing.js?v=15", "inline-writing.js?v=18", 1)
+        text = text.replace("inline-writing.js?v=14", "inline-writing.js?v=18", 1)
     path.write_text(text, encoding="utf-8")
 
 
