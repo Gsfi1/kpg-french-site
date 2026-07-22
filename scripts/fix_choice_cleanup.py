@@ -70,14 +70,37 @@ def patch_cleanup() -> None:
             HIDE_NON_ANSWER_CARDS_HELPER + "  function startCleanup() {",
             1,
         )
+    if "    cleanTrailingHeaders(target);\n    hideNonAnswerPromptCards(target);\n" not in text:
+        text = text.replace(
+            "    cleanTrailingHeaders(target);\n",
+            "    cleanTrailingHeaders(target);\n    hideNonAnswerPromptCards(target);\n",
+            1,
+        )
+    if "          cleanTrailingHeaders(paperList);\n          hideNonAnswerPromptCards(paperList);\n" not in text:
+        text = text.replace(
+            "          cleanTrailingHeaders(paperList);\n",
+            "          cleanTrailingHeaders(paperList);\n          hideNonAnswerPromptCards(paperList);\n",
+            1,
+        )
+    while "    hideNonAnswerPromptCards(target);\n    hideNonAnswerPromptCards(target);\n" in text:
+        text = text.replace(
+            "    hideNonAnswerPromptCards(target);\n    hideNonAnswerPromptCards(target);\n",
+            "    hideNonAnswerPromptCards(target);\n",
+        )
+    while "          hideNonAnswerPromptCards(paperList);\n          hideNonAnswerPromptCards(paperList);\n" in text:
+        text = text.replace(
+            "          hideNonAnswerPromptCards(paperList);\n          hideNonAnswerPromptCards(paperList);\n",
+            "          hideNonAnswerPromptCards(paperList);\n",
+        )
     text = text.replace(
-        "    cleanTrailingHeaders(target);\n",
-        "    cleanTrailingHeaders(target);\n    hideNonAnswerPromptCards(target);\n",
-        1,
-    )
-    text = text.replace(
-        "          cleanTrailingHeaders(paperList);\n",
-        "          cleanTrailingHeaders(paperList);\n          hideNonAnswerPromptCards(paperList);\n",
+        '        setTimeout(() => cleanTrailingHeaders(target), 0);\n'
+        '        setTimeout(() => cleanTrailingHeaders(target), 150);',
+        '        [0, 150].forEach((delay) => {\n'
+        '          setTimeout(() => {\n'
+        '            cleanTrailingHeaders(target);\n'
+        '            hideNonAnswerPromptCards(target);\n'
+        '          }, delay);\n'
+        '        });',
         1,
     )
     path.write_text(text, encoding="utf-8")
@@ -195,10 +218,10 @@ def patch_index() -> None:
         text,
         count=1,
     )
-    if "page-header-cleanup.js?v=10" not in text:
-        text = text.replace("page-header-cleanup.js?v=9", "page-header-cleanup.js?v=10", 1)
-    if "page-header-cleanup.js?v=11" not in text:
-        text = text.replace("page-header-cleanup.js?v=10", "page-header-cleanup.js?v=11", 1)
+    if "page-header-cleanup.js?v=12" not in text:
+        text = text.replace("page-header-cleanup.js?v=11", "page-header-cleanup.js?v=12", 1)
+        text = text.replace("page-header-cleanup.js?v=10", "page-header-cleanup.js?v=12", 1)
+        text = text.replace("page-header-cleanup.js?v=9", "page-header-cleanup.js?v=12", 1)
     if "inline-writing.css?v=17" not in text:
         text = text.replace("inline-writing.css?v=16", "inline-writing.css?v=17", 1)
         text = text.replace("inline-writing.css?v=15", "inline-writing.css?v=17", 1)
