@@ -493,8 +493,10 @@ function setupPrompts(node, paper) {
           const imageGrid = document.createElement("div");
           imageGrid.className = "activity-media-grid";
 
+          const imageTitles = activityImageTitles(activity, imageEntries.length);
+
           imageEntries.forEach((imageEntry, imageIndex) => {
-            const imageTitle = `Εικόνα ${imageIndex + 1}`;
+            const imageTitle = imageTitles[imageIndex] ?? `\u0395\u03b9\u03ba\u03cc\u03bd\u03b1 ${imageIndex + 1}`;
             const figure = document.createElement("figure");
             figure.className = "activity-image-card";
             const imageButton = document.createElement("button");
@@ -624,6 +626,55 @@ function activityImagesFor(paperId, source, activity) {
   });
 
   return images;
+}
+
+function activityImageTitles(activity, imageCount) {
+  const text = activity?.text ?? "";
+  const numberedLabels = trailingNumberedItemLabels(text);
+  if (numberedLabels.length === imageCount) return numberedLabels;
+
+  const optionLabels = visualOptionLabels(text, imageCount);
+  if (optionLabels.length === imageCount) return optionLabels;
+
+  return [];
+}
+
+function trailingNumberedItemLabels(text) {
+  const footerIndex = text.search(/\n\s*Nivea(?:u|ux)\b/i);
+  const body = footerIndex >= 0 ? text.slice(0, footerIndex) : text;
+  const lines = body
+    .split(/\n/)
+    .map((line) => line.trim())
+    .filter(Boolean);
+  const labelLines = [];
+
+  for (let index = lines.length - 1; index >= 0; index -= 1) {
+    const line = lines[index].replace(/\s+/g, " ");
+    if (/^(?:\d{1,2}[a-z]?\s*[.)]\s*)+$/i.test(line)) {
+      labelLines.unshift(line);
+      continue;
+    }
+
+    if (labelLines.length > 0) break;
+  }
+
+  return labelLines.join(" ").match(/\d{1,2}[a-z]?/gi) ?? [];
+}
+
+function visualOptionLabels(text, imageCount) {
+  const lines = text
+    .split(/\n/)
+    .map((line) => line.trim())
+    .filter(Boolean);
+
+  for (const line of lines) {
+    if (!/^(?:[A-H]\s*[.)]?\s*)+$/i.test(line)) continue;
+
+    const labels = line.match(/[A-H]/gi) ?? [];
+    if (labels.length === imageCount) return labels.map((label) => label.toUpperCase());
+  }
+
+  return [];
 }
 
 function activityPageNumbers(text) {
