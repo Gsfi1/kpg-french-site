@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import shutil
 from pathlib import Path
 
 
@@ -258,9 +259,24 @@ def patch_index() -> None:
     path.write_text(text, encoding="utf-8")
 
 
+def copy_extracted_section_pdfs() -> None:
+    tmp_root = ROOT / ".tmp-2026-images"
+    if not tmp_root.exists():
+        return
+
+    for pdf_dir in tmp_root.glob("*/pdfs"):
+        paper_id = pdf_dir.parent.name
+        target_dir = ROOT / "assets" / "exams" / paper_id
+        target_dir.mkdir(parents=True, exist_ok=True)
+
+        for pdf_path in pdf_dir.glob("*.pdf"):
+            shutil.copy2(pdf_path, target_dir / pdf_path.name)
+
+
 def main() -> None:
     patch_app()
     patch_index()
+    copy_extracted_section_pdfs()
 
 
 if __name__ == "__main__":
