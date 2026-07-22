@@ -803,6 +803,11 @@
       addMatch(match.index + match[0].length, match[1]);
     }
 
+    const bareItemPattern = /(^|[ \t\n])(\d{1,2}[a-z])(?=\s|$)/gm;
+    while ((match = bareItemPattern.exec(sourceText)) !== null) {
+      addMatch(match.index + match[1].length + match[2].length, match[2]);
+    }
+
     return matches.length >= 2 ? matches : [];
   }
 
