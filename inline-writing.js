@@ -1051,13 +1051,14 @@
         enhanceActivityAnswerFields(paperList);
       });
     });
-    observer.observe(paperList, { childList: true });
+    observer.observe(paperList, { childList: true, subtree: true, characterData: true });
 
     const paperSelect = document.querySelector("#paperSelect");
     if (paperSelect) {
       paperSelect.addEventListener("change", () => {
-        setTimeout(() => enhanceActivityAnswerFields(paperList), 0);
-        setTimeout(() => enhanceActivityAnswerFields(paperList), 150);
+        [0, 150, 800, 2000, 5000, 9000].forEach((delay) => {
+          setTimeout(() => enhanceActivityAnswerFields(paperList), delay);
+        });
       });
     }
 
