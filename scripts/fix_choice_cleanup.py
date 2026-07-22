@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from pathlib import Path
 
 
@@ -13,6 +14,48 @@ INLINE_WRITABLE_HELPER = (
 )
 
 
+PROMPT_FONT_CSS = r'''
+.fill-jump {
+  display: none !important;
+}
+
+.prompt-box > details:not(:has(.activity-answer-block)),
+.prompt-box .activity-card:not(:has(.activity-answer-block)) {
+  display: none !important;
+}
+
+.paper-card,
+.prompt-box,
+.prompt-text,
+.activity-writing-sheet,
+.activity-writing-sheet .prompt-text,
+.activity-title,
+.section-label {
+  font-family: var(--app-font) !important;
+  letter-spacing: 0 !important;
+  word-spacing: normal;
+  font-kerning: normal;
+  text-rendering: optimizeLegibility;
+}
+
+.activity-writing-sheet .prompt-text {
+  font-size: 0.95rem;
+  line-height: 1.55;
+}
+'''
+
+
+HIDE_NON_ANSWER_CARDS_HELPER = r'''  function hideNonAnswerPromptCards(root = document) {
+    root.querySelectorAll(".prompt-box > details, .prompt-box .activity-card").forEach((card) => {
+      if (card.querySelector(".activity-answer-block")) return;
+      card.hidden = true;
+      card.style.setProperty("display", "none", "important");
+    });
+  }
+
+'''
+
+
 def patch_cleanup() -> None:
     path = ROOT / "page-header-cleanup.js"
     text = path.read_text(encoding="utf-8")
@@ -21,6 +64,30 @@ def patch_cleanup() -> None:
         'if (!textBlock.querySelector(".inline-answer-slot, .inline-choice-checkbox")) {',
         1,
     )
+    if "function hideNonAnswerPromptCards" not in text:
+        text = text.replace(
+            "  function startCleanup() {",
+            HIDE_NON_ANSWER_CARDS_HELPER + "  function startCleanup() {",
+            1,
+        )
+    text = text.replace(
+        "    cleanTrailingHeaders(target);\n",
+        "    cleanTrailingHeaders(target);\n    hideNonAnswerPromptCards(target);\n",
+        1,
+    )
+    text = text.replace(
+        "          cleanTrailingHeaders(paperList);\n",
+        "          cleanTrailingHeaders(paperList);\n          hideNonAnswerPromptCards(paperList);\n",
+        1,
+    )
+    path.write_text(text, encoding="utf-8")
+
+
+def patch_prompt_font_css() -> None:
+    path = ROOT / "inline-writing.css"
+    text = path.read_text(encoding="utf-8")
+    if ".fill-jump" not in text:
+        text = text.rstrip() + "\n\n" + PROMPT_FONT_CSS.strip() + "\n"
     path.write_text(text, encoding="utf-8")
 
 
@@ -122,8 +189,20 @@ def patch_inline_reprocess() -> None:
 def patch_index() -> None:
     path = ROOT / "index.html"
     text = path.read_text(encoding="utf-8")
+    text = re.sub(
+        r'[ \t]*<a class="ghost-button fill-jump" href="#fill-here">.*?</a>\r?\n',
+        "",
+        text,
+        count=1,
+    )
     if "page-header-cleanup.js?v=10" not in text:
         text = text.replace("page-header-cleanup.js?v=9", "page-header-cleanup.js?v=10", 1)
+    if "page-header-cleanup.js?v=11" not in text:
+        text = text.replace("page-header-cleanup.js?v=10", "page-header-cleanup.js?v=11", 1)
+    if "inline-writing.css?v=17" not in text:
+        text = text.replace("inline-writing.css?v=16", "inline-writing.css?v=17", 1)
+        text = text.replace("inline-writing.css?v=15", "inline-writing.css?v=17", 1)
+        text = text.replace("inline-writing.css?v=14", "inline-writing.css?v=17", 1)
     if "inline-writing.js?v=26" not in text:
         text = text.replace("inline-writing.js?v=25", "inline-writing.js?v=26", 1)
         text = text.replace("inline-writing.js?v=24", "inline-writing.js?v=26", 1)
@@ -136,6 +215,7 @@ def patch_index() -> None:
 
 def main() -> None:
     patch_cleanup()
+    patch_prompt_font_css()
     patch_inline_reprocess()
     patch_index()
 
