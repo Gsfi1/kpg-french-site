@@ -371,14 +371,6 @@ function sectionResourceFor(node, paper, resources, activeTarget = null) {
   const activePromptBox = activeTarget?.closest?.(".prompt-box") ?? node.querySelector(".prompt-box:not(.is-empty)");
   const activeDetails = activeTarget?.closest?.(".prompt-box > details") ?? activePromptBox?.querySelector("details");
   const promptLink = activeDetails?.querySelector(":scope > .prompt-link");
-
-  if (promptLink?.getAttribute("href")) {
-    return {
-      kind: "section-pdf",
-      href: promptLink.getAttribute("href")
-    };
-  }
-
   const section = activePromptBox?.dataset.prompt ?? "section1";
   const sectionNumber = section.match(/\d+/)?.[0] ?? "1";
   const sectionPdf = resources.find((resource) => sectionResourceMatches(resource, sectionNumber));
@@ -386,6 +378,14 @@ function sectionResourceFor(node, paper, resources, activeTarget = null) {
     return {
       ...sectionPdf,
       kind: "section-pdf"
+    };
+  }
+
+  const promptHref = promptLink?.getAttribute("href") ?? "";
+  if (promptHref) {
+    return {
+      kind: promptHref.toLowerCase().endsWith(".zip") ? "zip" : "section-pdf",
+      href: promptHref
     };
   }
 
@@ -398,6 +398,26 @@ function sectionResourceMatches(resource, sectionNumber) {
   if (!href.includes(`epr${sectionNumber}`)) return false;
   if (href.includes("reponses") || href.includes("script")) return false;
   return true;
+}
+
+function promptHrefForEntry(paper, section, entry) {
+  const href = entry.href ?? "";
+  if (!href) return "";
+
+  const localPdf = localPromptPdfHref(paper, section, entry);
+  if (href.toLowerCase().endsWith(".zip") && localPdf) return localPdf;
+  return href;
+}
+
+function localPromptPdfHref(paper, section, entry) {
+  const source = (entry.source ?? "").trim();
+  if (!source.toLowerCase().endsWith(".pdf")) return "";
+
+  const sectionNumber = section?.match(/\d+/)?.[0] ?? "";
+  if (sectionNumber && !source.toLowerCase().includes(`epr${sectionNumber}`)) return "";
+  if (/^[a-z][a-z0-9+.-]*:/i.test(source)) return source;
+  if (source.includes("/") || source.includes("\\")) return source.replace(/\\/g, "/");
+  return `assets/exams/${paper.id}/${source}`;
 }
 
 function setupPrompts(node, paper) {
@@ -434,13 +454,14 @@ function setupPrompts(node, paper) {
       summary.append(title, source);
       details.append(summary);
 
-      if (entry.href) {
+      const promptHref = promptHrefForEntry(paper, section, entry);
+      if (promptHref) {
         const link = document.createElement("a");
         link.className = "prompt-link";
-        link.href = entry.href;
+        link.href = promptHref;
         link.target = "_blank";
         link.rel = "noreferrer";
-        link.textContent = promptLinkText(entry.href);
+        link.textContent = promptLinkText(promptHref);
         details.append(link);
       }
 

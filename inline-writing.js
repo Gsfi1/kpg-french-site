@@ -595,16 +595,55 @@
 
   function findChoiceHeaderLineMatches(sourceText) {
     const matches = [];
-    const pattern = /^\s*(?:[A-F](?:\s+[A-F]){1,7})\s*(?:\r?\n)?/gm;
-    let match;
+    const labelMap = {
+      Α: "A",
+      Β: "B",
+      Γ: "C",
+      Δ: "D",
+      Ε: "E",
+      Ζ: "F"
+    };
+    const linePattern = /[^\n]*(?:\n|$)/g;
+    let block = [];
 
-    while ((match = pattern.exec(sourceText)) !== null) {
-      matches.push({
-        type: "remove",
-        token: match[0],
-        index: match.index
-      });
+    const flushBlock = () => {
+      if (block.length === 0) return;
+
+      const labels = block.flatMap((line) => line.labels);
+      const uniqueLabels = new Set(labels);
+      const shouldRemove = uniqueLabels.size >= 2 && (block.length > 1 || labels.length > 1);
+      if (shouldRemove) {
+        matches.push({
+          type: "remove",
+          token: block.map((line) => line.token).join(""),
+          index: block[0].index
+        });
+      }
+
+      block = [];
+    };
+
+    let match;
+    while ((match = linePattern.exec(sourceText)) !== null) {
+      const token = match[0];
+      if (!token) break;
+
+      const content = token.replace(/\r?\n$/, "");
+      const labelMatches = Array.from(content.matchAll(/[A-FΑΒΓΔΕΖ]\.?/g));
+      const isChoiceOnlyLine = labelMatches.length > 0 && content.replace(/[A-FΑΒΓΔΕΖ]\.?/g, "").trim() === "";
+
+      if (isChoiceOnlyLine) {
+        block.push({
+          token,
+          index: match.index,
+          labels: labelMatches.map((labelMatch) => labelMap[labelMatch[0].replace(".", "")] ?? labelMatch[0].replace(".", ""))
+        });
+      } else {
+        flushBlock();
+      }
     }
+
+    flushBlock();
 
     return matches;
   }
