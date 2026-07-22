@@ -948,6 +948,10 @@
     return group;
   }
 
+  function hasInlineWritableFields(textBlock) {
+    return Boolean(textBlock.querySelector(".inline-answer-slot, .inline-choice-checkbox, .inline-match-slot"));
+  }
+
   function enhanceInlineBlanks(root = document) {
     root.querySelectorAll(".prompt-text.activity-text").forEach((textBlock, blockIndex) => {
       const readyState = textBlock.dataset.inlineBlanksReady;
