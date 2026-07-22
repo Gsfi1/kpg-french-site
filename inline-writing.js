@@ -530,7 +530,7 @@
   }
 
   function findWritableBlankMatches(sourceText) {
-    const matches = sourceText.matchAll(/(?:\.{3,}|\u2026+|_{3,}|[\u25a1\uf0a8]{2,})/g);
+    const matches = sourceText.matchAll(/(?:\.{3,}|\u2026+|_{3,}|[\u25a1\uf0a8\u2751]{2,})/g);
 
     return Array.from(matches).filter((match) => {
       const token = match[0];
@@ -556,7 +556,7 @@
 
   function findChoiceSquareMatches(sourceText) {
     const matches = [];
-    const pattern = /\b([A-F])\.?([ \t]*)[\u25a1\uf0a8]/g;
+    const pattern = /\b([A-F])\.?([ \t]*)[\u25a1\uf0a8\u2751]/g;
     let match;
 
     while ((match = pattern.exec(sourceText)) !== null) {
@@ -700,7 +700,7 @@
 
     while ((match = itemPattern.exec(sourceText)) !== null) {
       const line = match[0];
-      if (/[\u25a1\uf0a8]/.test(line)) continue;
+      if (/[\u25a1\uf0a8\u2751]/.test(line)) continue;
       if (/\b[A-F]\.(?:\s*[A-F]\.){1,5}\s*$/.test(line)) continue;
       matches.push({
         type: "choiceGroup",
