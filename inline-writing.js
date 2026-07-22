@@ -386,12 +386,21 @@
 
     if (imageEntries.length === 0) {
       imageGrid?.remove();
+      removeInlineContextImages(card);
       return;
     }
 
     const contextMode = imagesAreContextForActivity(card, imageEntries);
-    const imageTitles = contextMode ? [] : activityImageTitles(card, imageEntries.length);
-    const signature = `${contextMode ? "context" : "choices"}::${imageEntries.map((entry) => entry.src).join("|")}::${imageTitles.join(",")}`;
+    if (contextMode) {
+      imageGrid?.remove();
+      renderInlineContextImages(card, imageEntries);
+      return;
+    }
+
+    removeInlineContextImages(card);
+
+    const imageTitles = activityImageTitles(card, imageEntries.length);
+    const signature = `choices::${imageEntries.map((entry) => entry.src).join("|")}::${imageTitles.join(",")}`;
     if (imageGrid?.dataset.syncedImageSignature === signature) return;
 
     if (!imageGrid) {
@@ -408,45 +417,197 @@
     }
 
     imageGrid.dataset.syncedImageSignature = signature;
-    imageGrid.classList.toggle("activity-context-media", contextMode);
+    imageGrid.classList.remove("activity-context-media");
     imageGrid.textContent = "";
 
     imageEntries.forEach((imageEntry, imageIndex) => {
-      const imageTitle = contextMode ? contextImageTitle(imageIndex) : imageTitles[imageIndex] ?? `${IMAGE_TITLE_PREFIX} ${imageIndex + 1}`;
-      const figure = document.createElement("figure");
-      figure.className = contextMode ? "activity-image-card activity-context-image-card" : "activity-image-card";
+      const imageTitle = imageTitles[imageIndex] ?? `${IMAGE_TITLE_PREFIX} ${imageIndex + 1}`;
+      imageGrid.append(createSyncedImageFigure(imageEntry, imageTitle, false));
+    });
+  }
 
-      const imageButton = document.createElement("button");
-      imageButton.className = "activity-image-button";
-      imageButton.type = "button";
-      imageButton.setAttribute("aria-label", `Open ${imageTitle}`);
+  function createSyncedImageFigure(imageEntry, imageTitle, contextMode) {
+    const figure = document.createElement("figure");
+    figure.className = contextMode ? "activity-image-card activity-context-image-card" : "activity-image-card";
 
-      const image = document.createElement("img");
-      image.className = "activity-image";
-      image.src = imageEntry.src;
-      image.alt = imageTitle;
-      image.loading = "lazy";
+    const imageButton = document.createElement("button");
+    imageButton.className = "activity-image-button";
+    imageButton.type = "button";
+    imageButton.setAttribute("aria-label", `Open ${imageTitle}`);
 
-      const caption = document.createElement("figcaption");
-      caption.textContent = imageTitle;
+    const image = document.createElement("img");
+    image.className = "activity-image";
+    image.src = imageEntry.src;
+    image.alt = imageTitle;
+    image.loading = "lazy";
 
-      imageButton.addEventListener("click", () => {
-        if (typeof window.openImageLightbox === "function") {
-          window.openImageLightbox(imageEntry.src, imageTitle);
+    const caption = document.createElement("figcaption");
+    caption.textContent = imageTitle;
+
+    imageButton.addEventListener("click", () => {
+      if (typeof window.openImageLightbox === "function") {
+        window.openImageLightbox(imageEntry.src, imageTitle);
+        return;
+      }
+
+      window.open(imageEntry.src, "_blank", "noopener");
+    });
+
+    imageButton.append(image);
+    if (contextMode) {
+      figure.append(imageButton);
+    } else {
+      figure.append(imageButton, caption);
+    }
+
+    return figure;
+  }
+
+  function removeInlineContextImages(card) {
+    card.querySelectorAll(".activity-context-inline-media").forEach((block) => block.remove());
+    const textBlock = card.querySelector(".prompt-text.activity-text");
+    if (textBlock) {
+      delete textBlock.dataset.contextImageSignature;
+    }
+  }
+
+  function renderInlineContextImages(card, imageEntries) {
+    const textBlock = card.querySelector(".prompt-text.activity-text");
+    if (!textBlock) return;
+
+    const signature = `context-inline::${imageEntries.map((entry) => entry.src).join("|")}`;
+    if (textBlock.dataset.contextImageSignature === signature && textBlock.querySelector(".activity-context-inline-media")) {
+      return;
+    }
+
+    removeInlineContextImages(card);
+    const groups = contextImageLineGroups(textBlock.textContent ?? "", imageEntries);
+    groups.forEach((group) => {
+      const block = document.createElement("div");
+      block.className = "activity-context-inline-media";
+      group.entries.forEach(({ entry, index }) => {
+        block.append(createSyncedImageFigure(entry, contextImageTitle(index), true));
+      });
+      insertContextBlockAfterLine(textBlock, group.lineIndex, block);
+    });
+
+    textBlock.dataset.contextImageSignature = signature;
+  }
+
+  function contextImageLineGroups(text, imageEntries) {
+    const lines = text.split(/\n/);
+    const contentStart = firstContextContentLine(lines);
+    const contentEnd = firstQuestionLine(lines, contentStart);
+    const spanEnd = Math.max(contentStart + 1, contentEnd);
+    const targets = imageEntries.map((entry, index) => ({
+      entry,
+      index,
+      lineIndex: contextImageTargetLine(entry, index, imageEntries, contentStart, spanEnd)
+    }));
+
+    return targets.reduce((groups, target) => {
+      const previous = groups[groups.length - 1];
+      if (previous && previous.lineIndex === target.lineIndex) {
+        previous.entries.push(target);
+      } else {
+        groups.push({ lineIndex: target.lineIndex, entries: [target] });
+      }
+      return groups;
+    }, []);
+  }
+
+  function firstContextContentLine(lines) {
+    const instructionPattern = /\b(?:Mets une croix|Pour chaque item|bonne case|feuille de r(?:e|\u00e9)ponses|ATTENTION)\b/i;
+    const greekInstructionPattern = /(?:\u03a3\u03b7\u03bc\u03b5\u03af\u03c9\u03c3\u03b5|\u03ba\u03bf\u03c5\u03c4\u03ac\u03ba\u03b9|\u03a0\u03a1\u039f\u03a3\u039f\u03a7\u0397)/i;
+    let instructionEnd = -1;
+
+    lines.forEach((line, index) => {
+      if (instructionPattern.test(line) || greekInstructionPattern.test(line)) {
+        instructionEnd = index;
+      }
+    });
+
+    let contentStart = instructionEnd >= 0 ? instructionEnd + 1 : 0;
+    while (contentStart < lines.length && !lines[contentStart].trim()) {
+      contentStart += 1;
+    }
+
+    return Math.min(contentStart, Math.max(0, lines.length - 1));
+  }
+
+  function firstQuestionLine(lines, fromLine) {
+    const questionIndex = lines.findIndex((line, index) => index > fromLine && /^\s*\d{1,2}[a-z]?\s*[.)]/i.test(line));
+    if (questionIndex >= 0) return questionIndex;
+
+    const footerIndex = lines.findIndex((line, index) => index > fromLine && /^\s*Nivea(?:u|ux)\b/i.test(line));
+    return footerIndex >= 0 ? footerIndex : lines.length;
+  }
+
+  function contextImageTargetLine(entry, index, imageEntries, contentStart, contentEnd) {
+    const positioned = imageEntries.filter((item) => Number.isFinite(Number(item.pdfY)));
+    if (positioned.length >= 2) {
+      const minY = Math.min(...positioned.map((item) => Number(item.pdfY)));
+      const maxY = Math.max(...positioned.map((item) => Number(item.pdfY)));
+      if (maxY > minY) {
+        const ratio = (Number(entry.pdfY) - minY) / (maxY - minY);
+        return clampLine(Math.round(contentStart - 1 + ratio * Math.max(1, contentEnd - contentStart)), contentStart - 1, contentEnd - 1);
+      }
+    }
+
+    if (index === 0) return Math.max(0, contentStart - 1);
+    if (index === 1) return contentStart;
+
+    const available = Math.max(1, contentEnd - contentStart - 1);
+    return clampLine(contentStart + Math.round(((index - 1) * available) / Math.max(1, imageEntries.length - 2)), contentStart, contentEnd - 1);
+  }
+
+  function clampLine(value, min, max) {
+    return Math.max(min, Math.min(max, value));
+  }
+
+  function insertContextBlockAfterLine(textBlock, lineIndex, block) {
+    if (lineIndex < 0) {
+      textBlock.prepend(block);
+      return;
+    }
+
+    const walker = document.createTreeWalker(textBlock, NodeFilter.SHOW_TEXT, {
+      acceptNode(node) {
+        return node.parentElement?.closest(".activity-context-inline-media")
+          ? NodeFilter.FILTER_REJECT
+          : NodeFilter.FILTER_ACCEPT;
+      }
+    });
+
+    let remainingBreaks = lineIndex + 1;
+    let node = walker.nextNode();
+    let lastTextNode = null;
+
+    while (node) {
+      lastTextNode = node;
+      const value = node.nodeValue ?? "";
+      for (let index = 0; index < value.length; index += 1) {
+        if (value[index] !== "\n") continue;
+        remainingBreaks -= 1;
+        if (remainingBreaks === 0) {
+          const insertOffset = index + 1;
+          if (insertOffset < value.length) {
+            const after = node.splitText(insertOffset);
+            after.parentNode?.insertBefore(block, after);
+          } else {
+            node.parentNode?.insertBefore(block, node.nextSibling);
+          }
           return;
         }
-
-        window.open(imageEntry.src, "_blank", "noopener");
-      });
-
-      imageButton.append(image);
-      if (contextMode) {
-        figure.append(imageButton);
-      } else {
-        figure.append(imageButton, caption);
       }
-      imageGrid.append(figure);
-    });
+      node = walker.nextNode();
+    }
+
+    if (lastTextNode?.parentNode) {
+      lastTextNode.parentNode.insertBefore(block, lastTextNode.nextSibling);
+    } else {
+      textBlock.append(block);
+    }
   }
 
   function activityImageTitles(card, imageCount) {

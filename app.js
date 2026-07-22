@@ -599,35 +599,6 @@ function activityAnswerField(section, entry, entryIndex, activityIndex) {
   return `${section}_${source || entryIndex}_activity_${activityIndex + 1}`;
 }
 
-function activityImagesFor(paperId, source, activity) {
-  if (activity.answerable === false) return [];
-
-  const sourceImages = paperImages[paperId]?.[source] ?? {};
-  const images = [];
-  const activityKeys = activityKeysFor(activity);
-  const pages = orderedUnique([
-    ...(activity.pages ?? []),
-    ...activityPageNumbers(activity.title ?? ""),
-    ...inferredOralPageNumbers(paperId, source, activity)
-  ]);
-
-  pages.forEach((pageNumber) => {
-    const pageImages = sourceImages[String(pageNumber)] ?? [];
-    const taggedImages = pageImages.some((entry) => imageActivityKeys(entry).length > 0);
-
-    if (taggedImages && activityKeys.length > 0) {
-      images.push(...pageImages.filter((entry) => imageMatchesActivity(entry, activityKeys)));
-      return;
-    }
-
-    if (!taggedImages) {
-      images.push(...pageImages);
-    }
-  });
-
-  return images;
-}
-
 function activityImageTitles(activity, imageCount) {
   const text = activity?.text ?? "";
   const numberedLabels = trailingNumberedItemLabels(text);
@@ -675,6 +646,35 @@ function visualOptionLabels(text, imageCount) {
   }
 
   return [];
+}
+
+function activityImagesFor(paperId, source, activity) {
+  if (activity.answerable === false) return [];
+
+  const sourceImages = paperImages[paperId]?.[source] ?? {};
+  const images = [];
+  const activityKeys = activityKeysFor(activity);
+  const pages = orderedUnique([
+    ...(activity.pages ?? []),
+    ...activityPageNumbers(activity.title ?? ""),
+    ...inferredOralPageNumbers(paperId, source, activity)
+  ]);
+
+  pages.forEach((pageNumber) => {
+    const pageImages = sourceImages[String(pageNumber)] ?? [];
+    const taggedImages = pageImages.some((entry) => imageActivityKeys(entry).length > 0);
+
+    if (taggedImages && activityKeys.length > 0) {
+      images.push(...pageImages.filter((entry) => imageMatchesActivity(entry, activityKeys)));
+      return;
+    }
+
+    if (!taggedImages) {
+      images.push(...pageImages);
+    }
+  });
+
+  return images;
 }
 
 function activityPageNumbers(text) {

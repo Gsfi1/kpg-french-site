@@ -874,6 +874,23 @@ progress::-moz-progress-bar {
   display: none;
 }
 
+.prompt-text .activity-context-inline-media {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 10px;
+  margin: 8px 0 10px;
+  white-space: normal;
+}
+
+.prompt-text .activity-context-inline-media .activity-image-card {
+  min-width: 0;
+}
+
+.prompt-text .activity-context-inline-media .activity-image {
+  max-height: 300px;
+  background: #fff;
+}
+
 .image-lightbox[hidden] {
   display: none;
 }
