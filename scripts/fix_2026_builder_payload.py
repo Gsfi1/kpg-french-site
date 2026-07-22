@@ -61,6 +61,30 @@ PATCH_INLINE_JS = r'''def patch_inline_js() -> None:
 '''
 
 
+def patch_pdf_image_positions(source: str) -> str:
+    if '"pdfY"' in source:
+        return source
+
+    old = 'entry = {"src": rel, "alt": f"{source_name} - page {page.page_number}, image {len(kept) + 1}"}'
+    new = '''pdf_x = float(image["x0"]) / float(page.width)
+                    pdf_y = float(image["top"]) / float(page.height)
+                    pdf_w = float(image["x1"] - image["x0"]) / float(page.width)
+                    pdf_h = float(image["bottom"] - image["top"]) / float(page.height)
+                    entry = {
+                        "src": rel,
+                        "alt": f"{source_name} - page {page.page_number}, image {len(kept) + 1}",
+                        "pdfX": round(pdf_x, 4),
+                        "pdfY": round(pdf_y, 4),
+                        "pdfW": round(pdf_w, 4),
+                        "pdfH": round(pdf_h, 4),
+                    }'''
+
+    if old not in source:
+        raise RuntimeError("Could not patch image PDF positions")
+
+    return source.replace(old, new, 1)
+
+
 def main() -> None:
     wrapper = SCRIPT.read_text(encoding="utf-8")
     match = re.search(r'_PAYLOAD = """(.+?)"""', wrapper, re.S)
@@ -74,6 +98,7 @@ def main() -> None:
         raise RuntimeError("Could not find patch_inline_js block")
 
     source = source[:start] + PATCH_INLINE_JS + source[end:]
+    source = patch_pdf_image_positions(source)
     payload = base64.b64encode(source.encode("utf-8")).decode("ascii")
     SCRIPT.write_text(
         'import base64\n\n'
