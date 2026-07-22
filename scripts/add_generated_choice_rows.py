@@ -66,11 +66,36 @@ CHOICE_ROW_HELPERS = r'''function lineStartAt(text, index) {
 
     while ((match = itemPattern.exec(sourceText)) !== null) {
       const line = match[0];
-      if (/[\u25a1\uf0a8]/.test(line)) continue;
+      if (/[\u25a1\uf0a8\u2751]/.test(line)) continue;
+      if (/\b[A-F]\.(?:\s*[A-F]\.){1,5}\s*$/.test(line)) continue;
       matches.push({
         type: "choiceGroup",
         token: "",
         index: match.index + line.length,
+        choices
+      });
+    }
+
+    return matches;
+  }
+
+  '''
+
+
+CHOICE_LABEL_SEQUENCE_HELPER = r'''function findChoiceLabelSequenceMatches(sourceText) {
+    const matches = [];
+    const pattern = /(^|[ \t])((?:[A-F]\.[ \t]*){2,6})(?=$|\r?\n)/gm;
+    let match;
+
+    while ((match = pattern.exec(sourceText)) !== null) {
+      const token = match[2];
+      const choices = Array.from(token.matchAll(/[A-F](?=\.)/g)).map((choiceMatch) => choiceMatch[0]);
+      if (choices.length < 2) continue;
+
+      matches.push({
+        type: "choiceGroup",
+        token,
+        index: match.index + match[1].length,
         choices
       });
     }
@@ -157,15 +182,24 @@ def patch_inline_js() -> None:
     if "  function findGeneratedChoiceGroupMatches(" not in text:
       text = text.replace("  function findInlineWritableMatches(sourceText) {", "  " + CHOICE_ROW_HELPERS + "function findInlineWritableMatches(sourceText) {", 1)
 
-    text = replace_once(
-        text,
-        '''      ...findWritableBlankMatches(sourceText),
-      ...findChoiceSquareMatches(sourceText)''',
-        '''      ...findWritableBlankMatches(sourceText),
+    if "  function findChoiceLabelSequenceMatches(" not in text:
+      text = text.replace("  function lineStartAt(text, index) {", "  " + CHOICE_LABEL_SEQUENCE_HELPER + "function lineStartAt(text, index) {", 1)
+
+    if "      ...findChoiceLabelSequenceMatches(sourceText)," not in text:
+      current_generated = '''      ...findWritableBlankMatches(sourceText),
       ...findChoiceSquareMatches(sourceText),
-      ...findGeneratedChoiceGroupMatches(sourceText)''',
-        "generated choice matches",
-    )
+      ...findGeneratedChoiceGroupMatches(sourceText)'''
+      current_basic = '''      ...findWritableBlankMatches(sourceText),
+      ...findChoiceSquareMatches(sourceText)'''
+      next_matches = '''      ...findWritableBlankMatches(sourceText),
+      ...findChoiceSquareMatches(sourceText),
+      ...findChoiceLabelSequenceMatches(sourceText),
+      ...findGeneratedChoiceGroupMatches(sourceText)'''
+
+      if current_generated in text:
+        text = text.replace(current_generated, next_matches, 1)
+      else:
+        text = replace_once(text, current_basic, next_matches, "generated choice matches")
 
     if "  function createInlineChoiceGroup(" not in text:
       text = text.replace("  function enhanceInlineBlanks(root = document) {", "  " + CHOICE_GROUP_CREATOR + "function enhanceInlineBlanks(root = document) {", 1)
@@ -211,8 +245,9 @@ def patch_index() -> None:
     text = path.read_text(encoding="utf-8")
     if "inline-writing.css?v=15" not in text:
         text = text.replace("inline-writing.css?v=14", "inline-writing.css?v=15", 1)
-    if "inline-writing.js?v=15" not in text:
-        text = text.replace("inline-writing.js?v=14", "inline-writing.js?v=15", 1)
+    if "inline-writing.js?v=16" not in text:
+        text = text.replace("inline-writing.js?v=15", "inline-writing.js?v=16", 1)
+        text = text.replace("inline-writing.js?v=14", "inline-writing.js?v=16", 1)
     path.write_text(text, encoding="utf-8")
 
 
