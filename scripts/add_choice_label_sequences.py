@@ -110,11 +110,17 @@ def patch_inline_js() -> None:
         end = text.index("  function lineStartAt(text, index) {", start)
         text = text[:start] + "  " + CHOICE_HEADER_LINE_HELPER + text[end:]
 
+    text = text.replace(
+        "      if (/[\\u25a1\\uf0a8]/.test(line)) continue;",
+        "      if (/[\\u25a1\\uf0a8\\u2751]/.test(line)) continue;",
+        1,
+    )
+
     line_skip = "      if (/\\b[A-F]\\.(?:\\s*[A-F]\\.){1,5}\\s*$/.test(line)) continue;"
     if line_skip not in text:
         text = text.replace(
-            "      if (/[\\u25a1\\uf0a8]/.test(line)) continue;",
-            "      if (/[\\u25a1\\uf0a8]/.test(line)) continue;\n" + line_skip,
+            "      if (/[\\u25a1\\uf0a8\\u2751]/.test(line)) continue;",
+            "      if (/[\\u25a1\\uf0a8\\u2751]/.test(line)) continue;\n" + line_skip,
             1,
         )
 
@@ -181,11 +187,12 @@ def patch_inline_js() -> None:
 def patch_index() -> None:
     path = ROOT / "index.html"
     text = path.read_text(encoding="utf-8")
-    if "inline-writing.js?v=18" not in text:
-        text = text.replace("inline-writing.js?v=17", "inline-writing.js?v=18", 1)
-        text = text.replace("inline-writing.js?v=16", "inline-writing.js?v=18", 1)
-        text = text.replace("inline-writing.js?v=15", "inline-writing.js?v=18", 1)
-        text = text.replace("inline-writing.js?v=14", "inline-writing.js?v=18", 1)
+    if "inline-writing.js?v=19" not in text:
+        text = text.replace("inline-writing.js?v=18", "inline-writing.js?v=19", 1)
+        text = text.replace("inline-writing.js?v=17", "inline-writing.js?v=19", 1)
+        text = text.replace("inline-writing.js?v=16", "inline-writing.js?v=19", 1)
+        text = text.replace("inline-writing.js?v=15", "inline-writing.js?v=19", 1)
+        text = text.replace("inline-writing.js?v=14", "inline-writing.js?v=19", 1)
     path.write_text(text, encoding="utf-8")
 
 
