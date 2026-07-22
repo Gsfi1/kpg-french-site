@@ -31,11 +31,21 @@
     });
   }
 
+  function hideNonAnswerPromptCards(root = document) {
+    root.querySelectorAll(".prompt-box > details, .prompt-box .activity-card").forEach((card) => {
+      if (card.querySelector(".activity-answer-block")) return;
+      card.hidden = true;
+      card.style.setProperty("display", "none", "important");
+    });
+  }
+
   function startCleanup() {
     const paperList = document.querySelector("#paperList");
     const target = paperList ?? document;
 
     cleanTrailingHeaders(target);
+    hideNonAnswerPromptCards(target);
+    hideNonAnswerPromptCards(target);
 
     if (paperList) {
       let scheduled = false;
@@ -45,6 +55,8 @@
         requestAnimationFrame(() => {
           scheduled = false;
           cleanTrailingHeaders(paperList);
+          hideNonAnswerPromptCards(paperList);
+          hideNonAnswerPromptCards(paperList);
         });
       });
       observer.observe(paperList, { childList: true, subtree: true });

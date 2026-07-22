@@ -214,3 +214,31 @@
     padding: 10px;
   }
 }
+
+.fill-jump {
+  display: none !important;
+}
+
+.prompt-box > details:not(:has(.activity-answer-block)),
+.prompt-box .activity-card:not(:has(.activity-answer-block)) {
+  display: none !important;
+}
+
+.paper-card,
+.prompt-box,
+.prompt-text,
+.activity-writing-sheet,
+.activity-writing-sheet .prompt-text,
+.activity-title,
+.section-label {
+  font-family: var(--app-font) !important;
+  letter-spacing: 0 !important;
+  word-spacing: normal;
+  font-kerning: normal;
+  text-rendering: optimizeLegibility;
+}
+
+.activity-writing-sheet .prompt-text {
+  font-size: 0.95rem;
+  line-height: 1.55;
+}
