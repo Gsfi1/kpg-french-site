@@ -959,6 +959,12 @@
 
   function enhanceInlineBlanks(root = document) {
     root.querySelectorAll(".prompt-text.activity-text").forEach((textBlock, blockIndex) => {
+      const card = textBlock.closest(".activity-card");
+      if (card && !card.querySelector(".activity-answer-block")) {
+        textBlock.dataset.inlineBlanksReady = "none";
+        return;
+      }
+
       const readyState = textBlock.dataset.inlineBlanksReady;
       if (readyState && (readyState !== "true" || hasInlineWritableFields(textBlock))) return;
 
