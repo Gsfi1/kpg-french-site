@@ -6,6 +6,7 @@
   const OFFICIAL_SOURCE_URL = "https://rcel2.enl.uoa.gr/kpg/gr_past_papers_fr.htm";
   const INLINE_FIELD_TOKEN = "_blank_";
   const INLINE_CHOICE_TOKEN = "_choice_";
+  const INLINE_MATCH_TOKEN = "_match_";
   const IMAGE_TITLE_PREFIX = "\u0395\u03b9\u03ba\u03cc\u03bd\u03b1";
   const VISUAL_ACTIVITY_PATTERN =
     /\b(?:photo|photos|image|images|carte|cartes|dessin|dessins|affiche|affiches|illustration|illustrations|document|documents|message|messages|texte|article|s[eé]rie|colonne|colonnes|ci-dessous|ci-apr[eè]s|observez|regardez)\b/i;
@@ -54,7 +55,9 @@
   }
 
   function isInlineFieldKey(fieldKey) {
-    return fieldKey.includes(INLINE_FIELD_TOKEN) || fieldKey.includes(INLINE_CHOICE_TOKEN);
+    return fieldKey.includes(INLINE_FIELD_TOKEN)
+      || fieldKey.includes(INLINE_CHOICE_TOKEN)
+      || fieldKey.includes(INLINE_MATCH_TOKEN);
   }
 
   function allowFullStorageReplace(duration = 1600) {
@@ -763,17 +766,59 @@
     return matches;
   }
 
+  function shouldGenerateMatchingFields(text) {
+    const hasMatchingVerb = /\b(?:correspondre|associe|associez|associer|relie|reliez|relier|rubrique|rubriques)\b/i.test(text);
+    const hasExtraVisualOption = /\ben\s+trop\b/i.test(text)
+      && /\b(?:carte|cartes|atelier|ateliers|message|messages|photo|photos|image|images|titre|titres|texte|textes|document|documents)\b/i.test(text);
+    const hasGreekMatching = /αντιστοιχ|αντιστοίχ|ταιριαξ|ταίριαξ/i.test(text);
+
+    return hasMatchingVerb || hasExtraVisualOption || hasGreekMatching;
+  }
+
+  function findMatchingItemMatches(sourceText) {
+    if (!shouldGenerateMatchingFields(sourceText)) return [];
+
+    const matches = [];
+    const seen = new Set();
+    const addMatch = (index, itemLabel) => {
+      const key = `${index}:${itemLabel}`;
+      if (seen.has(key)) return;
+      seen.add(key);
+      matches.push({
+        type: "matching",
+        token: "",
+        index,
+        itemLabel
+      });
+    };
+
+    const numberedPattern = /(^|[ \t\n])(\d{1,2}[a-z]?)([.)])(?=\s|$)/gim;
+    let match;
+    while ((match = numberedPattern.exec(sourceText)) !== null) {
+      addMatch(match.index + match[1].length + match[2].length + match[3].length, match[2]);
+    }
+
+    const itemPattern = /\bItem\s+(\d{1,2}[a-z]?)\b/gi;
+    while ((match = itemPattern.exec(sourceText)) !== null) {
+      addMatch(match.index + match[0].length, match[1]);
+    }
+
+    return matches.length >= 2 ? matches : [];
+  }
+
   function findInlineWritableMatches(sourceText) {
     const blankMatches = findWritableBlankMatches(sourceText);
-    const squareMatches = findChoiceSquareMatches(sourceText);
-    const labelSequenceMatches = findChoiceLabelSequenceMatches(sourceText);
-    const generatedChoiceMatches = findGeneratedChoiceGroupMatches(sourceText);
+    const matchingMatches = findMatchingItemMatches(sourceText);
+    const squareMatches = matchingMatches.length > 0 ? [] : findChoiceSquareMatches(sourceText);
+    const labelSequenceMatches = matchingMatches.length > 0 ? [] : findChoiceLabelSequenceMatches(sourceText);
+    const generatedChoiceMatches = matchingMatches.length > 0 ? [] : findGeneratedChoiceGroupMatches(sourceText);
     const removeMatches = [...squareMatches, ...labelSequenceMatches, ...generatedChoiceMatches].some((match) => match.type === "choiceGroup" || match.type === "choice")
       ? findChoiceHeaderLineMatches(sourceText)
       : [];
 
     const orderedMatches = [
       ...blankMatches,
+      ...matchingMatches,
       ...squareMatches,
       ...labelSequenceMatches,
       ...generatedChoiceMatches,
@@ -846,6 +891,33 @@
     return label;
   }
 
+  function createInlineMatchingField(textBlock, fieldKey, itemLabel, matchNumber) {
+    const paperId = paperIdFor(textBlock);
+    const input = document.createElement("input");
+    input.type = "text";
+    input.className = "answer-field inline-match-slot";
+    input.dataset.field = fieldKey;
+    input.value = readInlineAnswer(paperId, fieldKey);
+    input.maxLength = 4;
+    input.autocomplete = "off";
+    input.spellcheck = false;
+    input.placeholder = "A";
+    input.setAttribute("aria-label", `Αντιστοίχιση για ${itemLabel || matchNumber}`);
+
+    const normalize = () => {
+      input.value = input.value.toUpperCase().replace(/\s+/g, "").slice(0, 4);
+    };
+    const save = () => {
+      normalize();
+      writeInlineAnswer(paperIdFor(input) || paperId, fieldKey, input.value);
+    };
+
+    input.addEventListener("input", save);
+    input.addEventListener("change", save);
+
+    return input;
+  }
+
   function createInlineChoiceGroup(textBlock, prefix, rowNumber, choices) {
     const group = document.createElement("span");
     group.className = "inline-choice-group";
@@ -893,6 +965,7 @@
       let blankNumber = 0;
       let choiceNumber = 0;
       let choiceGroupNumber = 0;
+      let matchNumber = 0;
 
       textBlock.textContent = "";
       textBlock.dataset.inlineBlanksReady = "true";
@@ -911,6 +984,10 @@
           choiceNumber += 1;
           const fieldKey = `${prefix}${INLINE_CHOICE_TOKEN}${choiceNumber}`;
           textBlock.append(createInlineChoiceField(textBlock, fieldKey, match.optionLabel, choiceNumber));
+        } else if (match.type === "matching") {
+          matchNumber += 1;
+          const fieldKey = `${prefix}${INLINE_MATCH_TOKEN}${match.itemLabel || matchNumber}`;
+          textBlock.append(createInlineMatchingField(textBlock, fieldKey, match.itemLabel, matchNumber));
         } else if (match.type === "remove") {
           // Remove standalone A/B/C header rows once the choices are interactive.
         } else {
