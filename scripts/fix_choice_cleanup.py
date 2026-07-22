@@ -62,6 +62,21 @@ def patch_inline_reprocess() -> None:
         1,
     )
 
+    text = text.replace(
+        "    observer.observe(paperList, { childList: true });",
+        "    observer.observe(paperList, { childList: true, subtree: true, characterData: true });",
+        1,
+    )
+
+    text = text.replace(
+        '        setTimeout(() => enhanceActivityAnswerFields(paperList), 0);\n'
+        '        setTimeout(() => enhanceActivityAnswerFields(paperList), 150);',
+        '        [0, 150, 800, 2000, 5000, 9000].forEach((delay) => {\n'
+        '          setTimeout(() => enhanceActivityAnswerFields(paperList), delay);\n'
+        '        });',
+        1,
+    )
+
     path.write_text(text, encoding="utf-8")
 
 
@@ -70,9 +85,10 @@ def patch_index() -> None:
     text = path.read_text(encoding="utf-8")
     if "page-header-cleanup.js?v=10" not in text:
         text = text.replace("page-header-cleanup.js?v=9", "page-header-cleanup.js?v=10", 1)
-    if "inline-writing.js?v=22" not in text:
-        text = text.replace("inline-writing.js?v=21", "inline-writing.js?v=22", 1)
-        text = text.replace("inline-writing.js?v=20", "inline-writing.js?v=22", 1)
+    if "inline-writing.js?v=23" not in text:
+        text = text.replace("inline-writing.js?v=22", "inline-writing.js?v=23", 1)
+        text = text.replace("inline-writing.js?v=21", "inline-writing.js?v=23", 1)
+        text = text.replace("inline-writing.js?v=20", "inline-writing.js?v=23", 1)
     path.write_text(text, encoding="utf-8")
 
 
