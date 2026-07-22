@@ -77,6 +77,9 @@ jobs:
       - name: Add section PDF links
         run: python scripts/add_section_pdf_links.py
 
+      - name: Preserve matching answer fields
+        run: python scripts/fix_choice_cleanup.py
+
       - name: Commit generated images
         run: |
           git config user.name "github-actions[bot]"
