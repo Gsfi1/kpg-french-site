@@ -277,6 +277,109 @@ INLINE_IMAGE_TITLE_HELPERS = r'''  function activityImageTitles(card, imageCount
 '''
 
 
+INLINE_MATCHING_HELPERS = r'''  function shouldGenerateMatchingFields(text) {
+    const hasMatchingVerb = /\b(?:correspondre|associe|associez|associer|relie|reliez|relier|rubrique|rubriques)\b/i.test(text);
+    const hasExtraVisualOption = /\ben\s+trop\b/i.test(text)
+      && /\b(?:carte|cartes|atelier|ateliers|message|messages|photo|photos|image|images|titre|titres|texte|textes|document|documents)\b/i.test(text);
+    const hasGreekMatching = /αντιστοιχ|αντιστοίχ|ταιριαξ|ταίριαξ/i.test(text);
+
+    return hasMatchingVerb || hasExtraVisualOption || hasGreekMatching;
+  }
+
+  function findMatchingItemMatches(sourceText) {
+    if (!shouldGenerateMatchingFields(sourceText)) return [];
+
+    const matches = [];
+    const seen = new Set();
+    const addMatch = (index, itemLabel) => {
+      const key = `${index}:${itemLabel}`;
+      if (seen.has(key)) return;
+      seen.add(key);
+      matches.push({
+        type: "matching",
+        token: "",
+        index,
+        itemLabel
+      });
+    };
+
+    const numberedPattern = /(^|[ \t\n])(\d{1,2}[a-z]?)([.)])(?=\s|$)/gim;
+    let match;
+    while ((match = numberedPattern.exec(sourceText)) !== null) {
+      addMatch(match.index + match[1].length + match[2].length + match[3].length, match[2]);
+    }
+
+    const itemPattern = /\bItem\s+(\d{1,2}[a-z]?)\b/gi;
+    while ((match = itemPattern.exec(sourceText)) !== null) {
+      addMatch(match.index + match[0].length, match[1]);
+    }
+
+    return matches.length >= 2 ? matches : [];
+  }
+
+'''
+
+
+INLINE_MATCHING_FIELD_HELPER = r'''  function createInlineMatchingField(textBlock, fieldKey, itemLabel, matchNumber) {
+    const paperId = paperIdFor(textBlock);
+    const input = document.createElement("input");
+    input.type = "text";
+    input.className = "answer-field inline-match-slot";
+    input.dataset.field = fieldKey;
+    input.value = readInlineAnswer(paperId, fieldKey);
+    input.maxLength = 4;
+    input.autocomplete = "off";
+    input.spellcheck = false;
+    input.placeholder = "A";
+    input.setAttribute("aria-label", `Αντιστοίχιση για ${itemLabel || matchNumber}`);
+
+    const normalize = () => {
+      input.value = input.value.toUpperCase().replace(/\s+/g, "").slice(0, 4);
+    };
+    const save = () => {
+      normalize();
+      writeInlineAnswer(paperIdFor(input) || paperId, fieldKey, input.value);
+    };
+
+    input.addEventListener("input", save);
+    input.addEventListener("change", save);
+
+    return input;
+  }
+
+'''
+
+
+INLINE_MATCHING_CSS = r'''
+.activity-writing-sheet .inline-match-slot {
+  inline-size: 42px;
+  min-inline-size: 42px;
+  block-size: 28px;
+  margin: 0 10px 0 5px;
+  padding: 2px 6px;
+  border: 1px solid rgba(29, 79, 159, 0.38);
+  border-radius: 6px;
+  background: #fff;
+  color: #10203f;
+  font: inherit;
+  font-weight: 900;
+  line-height: 1;
+  text-align: center;
+  text-transform: uppercase;
+  vertical-align: middle;
+  box-shadow: inset 0 -2px 0 rgba(29, 79, 159, 0.12);
+}
+
+.activity-writing-sheet .inline-match-slot:focus {
+  outline: 2px solid rgba(29, 79, 159, 0.36);
+  outline-offset: 1px;
+  border-color: rgba(29, 79, 159, 0.76);
+  box-shadow: 0 0 0 3px rgba(29, 79, 159, 0.1);
+}
+
+'''
+
+
 def replace_function_block(text: str, start: str, end: str, replacement: str) -> str:
     start_index = text.index(start)
     end_index = text.index(end, start_index)
@@ -374,6 +477,22 @@ def patch_inline_writing() -> None:
     path = ROOT / "inline-writing.js"
     text = path.read_text(encoding="utf-8")
 
+    if 'const INLINE_MATCH_TOKEN = "_match_";' not in text:
+        text = text.replace(
+            '  const INLINE_CHOICE_TOKEN = "_choice_";',
+            '  const INLINE_CHOICE_TOKEN = "_choice_";\n  const INLINE_MATCH_TOKEN = "_match_";',
+            1,
+        )
+
+    if "fieldKey.includes(INLINE_MATCH_TOKEN)" not in text:
+        text = text.replace(
+            "    return fieldKey.includes(INLINE_FIELD_TOKEN) || fieldKey.includes(INLINE_CHOICE_TOKEN);",
+            "    return fieldKey.includes(INLINE_FIELD_TOKEN)\n"
+            "      || fieldKey.includes(INLINE_CHOICE_TOKEN)\n"
+            "      || fieldKey.includes(INLINE_MATCH_TOKEN);",
+            1,
+        )
+
     if "const imageTitles = activityImageTitles(card, imageEntries.length);" not in text:
         text = text.replace(
             '    const signature = imageEntries.map((entry) => entry.src).join("|");',
@@ -395,6 +514,74 @@ def patch_inline_writing() -> None:
             1,
         )
 
+    if "function findMatchingItemMatches(sourceText)" not in text:
+        text = text.replace(
+            "  function findInlineWritableMatches(sourceText) {",
+            INLINE_MATCHING_HELPERS + "  function findInlineWritableMatches(sourceText) {",
+            1,
+        )
+
+    if "const matchingMatches = findMatchingItemMatches(sourceText);" not in text:
+        text = text.replace(
+            "    const blankMatches = findWritableBlankMatches(sourceText);\n"
+            "    const squareMatches = findChoiceSquareMatches(sourceText);\n"
+            "    const labelSequenceMatches = findChoiceLabelSequenceMatches(sourceText);\n"
+            "    const generatedChoiceMatches = findGeneratedChoiceGroupMatches(sourceText);",
+            "    const blankMatches = findWritableBlankMatches(sourceText);\n"
+            "    const matchingMatches = findMatchingItemMatches(sourceText);\n"
+            "    const squareMatches = matchingMatches.length > 0 ? [] : findChoiceSquareMatches(sourceText);\n"
+            "    const labelSequenceMatches = matchingMatches.length > 0 ? [] : findChoiceLabelSequenceMatches(sourceText);\n"
+            "    const generatedChoiceMatches = matchingMatches.length > 0 ? [] : findGeneratedChoiceGroupMatches(sourceText);",
+            1,
+        )
+        text = text.replace(
+            "      ...blankMatches,\n"
+            "      ...squareMatches,",
+            "      ...blankMatches,\n"
+            "      ...matchingMatches,\n"
+            "      ...squareMatches,",
+            1,
+        )
+
+    if "function createInlineMatchingField(textBlock, fieldKey, itemLabel, matchNumber)" not in text:
+        text = text.replace(
+            "  function createInlineChoiceGroup(textBlock, prefix, rowNumber, choices) {",
+            INLINE_MATCHING_FIELD_HELPER + "  function createInlineChoiceGroup(textBlock, prefix, rowNumber, choices) {",
+            1,
+        )
+
+    if "let matchNumber = 0;" not in text:
+        text = text.replace(
+            "      let choiceGroupNumber = 0;",
+            "      let choiceGroupNumber = 0;\n      let matchNumber = 0;",
+            1,
+        )
+
+    if "createInlineMatchingField(textBlock, fieldKey, match.itemLabel, matchNumber)" not in text:
+        text = text.replace(
+            "        } else if (match.type === \"remove\") {\n"
+            "          // Remove standalone A/B/C header rows once the choices are interactive.",
+            "        } else if (match.type === \"matching\") {\n"
+            "          matchNumber += 1;\n"
+            "          const fieldKey = `${prefix}${INLINE_MATCH_TOKEN}${match.itemLabel || matchNumber}`;\n"
+            "          textBlock.append(createInlineMatchingField(textBlock, fieldKey, match.itemLabel, matchNumber));\n"
+            "        } else if (match.type === \"remove\") {\n"
+            "          // Remove standalone A/B/C header rows once the choices are interactive.",
+            1,
+        )
+
+    path.write_text(text, encoding="utf-8")
+
+
+def patch_inline_writing_css() -> None:
+    path = ROOT / "inline-writing.css"
+    text = path.read_text(encoding="utf-8")
+    if ".inline-match-slot" not in text:
+        text = text.replace(
+            ".activity-writing-sheet .inline-choice-group {",
+            INLINE_MATCHING_CSS + ".activity-writing-sheet .inline-choice-group {",
+            1,
+        )
     path.write_text(text, encoding="utf-8")
 
 
@@ -411,6 +598,13 @@ def patch_index() -> None:
         text = text.replace("inline-writing.js?v=14", "inline-writing.js?v=20", 1)
         text = text.replace("inline-writing.js?v=13", "inline-writing.js?v=20", 1)
         text = text.replace("inline-writing.js?v=12", "inline-writing.js?v=20", 1)
+    if "inline-writing.js?v=21" not in text:
+        text = text.replace("inline-writing.js?v=20", "inline-writing.js?v=21", 1)
+    if "inline-writing.css?v=16" not in text:
+        text = text.replace("inline-writing.css?v=15", "inline-writing.css?v=16", 1)
+        text = text.replace("inline-writing.css?v=14", "inline-writing.css?v=16", 1)
+        text = text.replace("inline-writing.css?v=13", "inline-writing.css?v=16", 1)
+        text = text.replace("inline-writing.css?v=12", "inline-writing.css?v=16", 1)
     path.write_text(text, encoding="utf-8")
 
 
@@ -431,6 +625,7 @@ def copy_extracted_section_pdfs() -> None:
 def main() -> None:
     patch_app()
     patch_inline_writing()
+    patch_inline_writing_css()
     patch_index()
     copy_extracted_section_pdfs()
 
