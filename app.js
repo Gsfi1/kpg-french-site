@@ -278,8 +278,8 @@ function createPaperCard(paper) {
     render();
   });
 
-  setupResources(node, paper);
   setupPrompts(node, paper);
+  setupResources(node, paper);
 
   node.querySelectorAll(".answer-field").forEach((field) => {
     field.value = answer[field.dataset.field] ?? (field.dataset.field === "status" ? "open" : "");
@@ -319,13 +319,11 @@ function setupResources(node, paper) {
   if (resources.length === 0) {
     select.disabled = true;
     const option = document.createElement("option");
-    option.textContent = "Δεν υπάρχει ενσωματωμένο αρχείο";
+    option.textContent = "\u0394\u03b5\u03bd \u03c5\u03c0\u03ac\u03c1\u03c7\u03b5\u03b9 \u03b5\u03bd\u03c3\u03c9\u03bc\u03b1\u03c4\u03c9\u03bc\u03ad\u03bd\u03bf \u03b1\u03c1\u03c7\u03b5\u03af\u03bf";
     option.value = "";
     select.append(option);
-    openLink.href = paper.url;
-    openLinkTop.href = paper.url;
-    openLink.textContent = "Άνοιγμα επίσημης πηγής";
-    openLinkTop.textContent = "Άνοιγμα πηγής";
+    renderSectionResourceLinks(node, paper, resources, openLink, openLinkTop);
+    bindSectionResourceLinks(node, paper, resources, openLink, openLinkTop);
     return;
   }
 
@@ -338,15 +336,68 @@ function setupResources(node, paper) {
 
   const renderResource = () => {
     const resource = resources[Number(select.value) || 0];
-    openLink.href = resource.href;
-    openLinkTop.href = resource.href;
-    openLink.textContent = resourceActionLabel(resource);
-    openLinkTop.textContent = resourceActionLabel(resource);
+    renderSectionResourceLinks(node, paper, resources, openLink, openLinkTop, resource);
   };
 
   select.addEventListener("change", renderResource);
+  bindSectionResourceLinks(node, paper, resources, openLink, openLinkTop);
   select.value = "0";
   renderResource();
+}
+
+function bindSectionResourceLinks(node, paper, resources, openLink, openLinkTop) {
+  const update = (event) => {
+    const target = event.target instanceof Element ? event.target : null;
+    renderSectionResourceLinks(node, paper, resources, openLink, openLinkTop, null, target);
+  };
+
+  node.querySelector(".fill-panel")?.addEventListener("focusin", update);
+  node.querySelector(".fill-panel")?.addEventListener("click", update);
+}
+
+function renderSectionResourceLinks(node, paper, resources, openLink, openLinkTop, fallbackResource = null, activeTarget = null) {
+  const resource = sectionResourceFor(node, paper, resources, activeTarget) ?? fallbackResource ?? resources[0] ?? {
+    kind: "page",
+    href: paper.url
+  };
+
+  openLink.href = resource.href;
+  openLinkTop.href = resource.href;
+  openLink.textContent = resourceActionLabel(resource);
+  openLinkTop.textContent = resourceActionLabel(resource);
+}
+
+function sectionResourceFor(node, paper, resources, activeTarget = null) {
+  const activePromptBox = activeTarget?.closest?.(".prompt-box") ?? node.querySelector(".prompt-box:not(.is-empty)");
+  const activeDetails = activeTarget?.closest?.(".prompt-box > details") ?? activePromptBox?.querySelector("details");
+  const promptLink = activeDetails?.querySelector(":scope > .prompt-link");
+
+  if (promptLink?.getAttribute("href")) {
+    return {
+      kind: "section-pdf",
+      href: promptLink.getAttribute("href")
+    };
+  }
+
+  const section = activePromptBox?.dataset.prompt ?? "section1";
+  const sectionNumber = section.match(/\d+/)?.[0] ?? "1";
+  const sectionPdf = resources.find((resource) => sectionResourceMatches(resource, sectionNumber));
+  if (sectionPdf) {
+    return {
+      ...sectionPdf,
+      kind: "section-pdf"
+    };
+  }
+
+  return null;
+}
+
+function sectionResourceMatches(resource, sectionNumber) {
+  const href = (resource.href ?? "").toLowerCase();
+  if (!href.endsWith(".pdf")) return false;
+  if (!href.includes(`epr${sectionNumber}`)) return false;
+  if (href.includes("reponses") || href.includes("script")) return false;
+  return true;
 }
 
 function setupPrompts(node, paper) {
@@ -749,6 +800,7 @@ function resourceLabel(resource) {
 }
 
 function resourceActionLabel(resource) {
+  if (resource.kind === "section-pdf") return "\u0386\u03bd\u03bf\u03b9\u03b3\u03bc\u03b1 PDF \u03b5\u03bd\u03cc\u03c4\u03b7\u03c4\u03b1\u03c2";
   if (resource.kind === "audio") return "Άνοιγμα ακουστικού";
   if (resource.kind === "zip") return "Άνοιγμα θεμάτων";
   if (resource.kind === "page") return "Άνοιγμα πηγής";

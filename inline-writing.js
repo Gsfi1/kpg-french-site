@@ -593,6 +593,22 @@
     return matches;
   }
 
+  function findChoiceHeaderLineMatches(sourceText) {
+    const matches = [];
+    const pattern = /^\s*(?:[A-F](?:\s+[A-F]){1,7})\s*(?:\r?\n)?/gm;
+    let match;
+
+    while ((match = pattern.exec(sourceText)) !== null) {
+      matches.push({
+        type: "remove",
+        token: match[0],
+        index: match.index
+      });
+    }
+
+    return matches;
+  }
+
   function lineStartAt(text, index) {
     return text.lastIndexOf("\n", Math.max(0, index - 1)) + 1;
   }
@@ -659,11 +675,20 @@
   }
 
   function findInlineWritableMatches(sourceText) {
+    const blankMatches = findWritableBlankMatches(sourceText);
+    const squareMatches = findChoiceSquareMatches(sourceText);
+    const labelSequenceMatches = findChoiceLabelSequenceMatches(sourceText);
+    const generatedChoiceMatches = findGeneratedChoiceGroupMatches(sourceText);
+    const removeMatches = [...squareMatches, ...labelSequenceMatches, ...generatedChoiceMatches].some((match) => match.type === "choiceGroup" || match.type === "choice")
+      ? findChoiceHeaderLineMatches(sourceText)
+      : [];
+
     const orderedMatches = [
-      ...findWritableBlankMatches(sourceText),
-      ...findChoiceSquareMatches(sourceText),
-      ...findChoiceLabelSequenceMatches(sourceText),
-      ...findGeneratedChoiceGroupMatches(sourceText)
+      ...blankMatches,
+      ...squareMatches,
+      ...labelSequenceMatches,
+      ...generatedChoiceMatches,
+      ...removeMatches
     ].sort((left, right) => left.index - right.index || right.token.length - left.token.length);
 
     let lastEnd = -1;
@@ -797,6 +822,8 @@
           choiceNumber += 1;
           const fieldKey = `${prefix}${INLINE_CHOICE_TOKEN}${choiceNumber}`;
           textBlock.append(createInlineChoiceField(textBlock, fieldKey, match.optionLabel, choiceNumber));
+        } else if (match.type === "remove") {
+          // Remove standalone A/B/C header rows once the choices are interactive.
         } else {
           blankNumber += 1;
           const fieldKey = `${prefix}${INLINE_FIELD_TOKEN}${blankNumber}`;
