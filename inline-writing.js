@@ -770,7 +770,7 @@
     const hasMatchingVerb = /\b(?:correspondre|associe|associez|associer|relie|reliez|relier|rubrique|rubriques)\b/i.test(text);
     const hasExtraVisualOption = /\ben\s+trop\b/i.test(text)
       && /\b(?:carte|cartes|atelier|ateliers|message|messages|photo|photos|image|images|titre|titres|texte|textes|document|documents)\b/i.test(text);
-    const hasGreekMatching = /αντιστοιχ|αντιστοίχ|ταιριαξ|ταίριαξ/i.test(text);
+    const hasGreekMatching = /αντιστοίχισε|αντιστοιχισε|αντιστοίχιση|αντιστοιχιση|ταίριαξε|ταιριαξε/i.test(text);
 
     return hasMatchingVerb || hasExtraVisualOption || hasGreekMatching;
   }
