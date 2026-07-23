@@ -481,15 +481,24 @@
     }
 
     removeInlineContextImages(card);
-    const groups = contextImageLineGroups(textBlock.textContent ?? "", imageEntries);
+    const { groups, clearLineIndex } = contextImageLineGroups(textBlock.textContent ?? "", imageEntries);
     groups.forEach((group) => {
       const block = document.createElement("div");
-      block.className = "activity-context-inline-media";
+      block.className = `activity-context-inline-media ${contextImageBlockClass(group.entries)}`;
+      const firstEntry = group.entries[0]?.entry;
+      const width = contextImageCssWidth(firstEntry);
+      if (width) block.style.setProperty("--context-image-width", width);
       group.entries.forEach(({ entry, index }) => {
         block.append(createSyncedImageFigure(entry, contextImageTitle(index), true));
       });
       insertContextBlockAfterLine(textBlock, group.lineIndex, block);
     });
+
+    if (groups.some((group) => contextImageBlockClass(group.entries).includes("float")) && clearLineIndex >= 0) {
+      const clear = document.createElement("div");
+      clear.className = "activity-context-clear";
+      insertContextBlockAfterLine(textBlock, clearLineIndex, clear);
+    }
 
     textBlock.dataset.contextImageSignature = signature;
   }
@@ -505,15 +514,20 @@
       lineIndex: contextImageTargetLine(entry, index, imageEntries, contentStart, spanEnd)
     }));
 
-    return targets.reduce((groups, target) => {
-      const previous = groups[groups.length - 1];
+    const groups = targets.reduce((acc, target) => {
+      const previous = acc[acc.length - 1];
       if (previous && previous.lineIndex === target.lineIndex) {
         previous.entries.push(target);
       } else {
-        groups.push({ lineIndex: target.lineIndex, entries: [target] });
+        acc.push({ lineIndex: target.lineIndex, entries: [target] });
       }
-      return groups;
+      return acc;
     }, []);
+
+    return {
+      groups,
+      clearLineIndex: contentEnd - 1
+    };
   }
 
   function firstContextContentLine(lines) {
@@ -544,14 +558,19 @@
   }
 
   function contextImageTargetLine(entry, index, imageEntries, contentStart, contentEnd) {
-    const positioned = imageEntries.filter((item) => Number.isFinite(Number(item.pdfY)));
-    if (positioned.length >= 2) {
-      const minY = Math.min(...positioned.map((item) => Number(item.pdfY)));
-      const maxY = Math.max(...positioned.map((item) => Number(item.pdfY)));
-      if (maxY > minY) {
-        const ratio = (Number(entry.pdfY) - minY) / (maxY - minY);
-        return clampLine(Math.round(contentStart - 1 + ratio * Math.max(1, contentEnd - contentStart)), contentStart - 1, contentEnd - 1);
-      }
+    const layout = contextImageLayout(entry);
+    if (layout === "wide") return Math.max(0, contentStart - 1);
+    if (layout === "float-left" || layout === "float-right") {
+      return clampLine(contentStart, contentStart - 1, contentEnd - 1);
+    }
+
+    const pdfY = Number(entry.pdfY);
+    if (Number.isFinite(pdfY)) {
+      if (pdfY < 0.28) return Math.max(0, contentStart - 1);
+      if (pdfY < 0.44) return contentStart;
+
+      const ratio = (pdfY - 0.28) / 0.5;
+      return clampLine(Math.round(contentStart + ratio * Math.max(1, contentEnd - contentStart)), contentStart, contentEnd - 1);
     }
 
     if (index === 0) return Math.max(0, contentStart - 1);
@@ -563,6 +582,38 @@
 
   function clampLine(value, min, max) {
     return Math.max(min, Math.min(max, value));
+  }
+
+  function contextImageLayout(entry) {
+    const x = Number(entry?.pdfX);
+    const w = Number(entry?.pdfW);
+    const h = Number(entry?.pdfH);
+
+    if (Number.isFinite(w) && (w >= 0.62 || (Number.isFinite(h) && h <= 0.08))) return "wide";
+    if (Number.isFinite(w) && w <= 0.46) {
+      if (!Number.isFinite(x) || x <= 0.38) return "float-left";
+      if (x >= 0.48) return "float-right";
+    }
+
+    return "block";
+  }
+
+  function contextImageBlockClass(entries) {
+    if (entries.length !== 1) return "activity-context-inline-grid";
+
+    const layout = contextImageLayout(entries[0]?.entry);
+    if (layout === "wide") return "activity-context-inline-wide";
+    if (layout === "float-left") return "activity-context-inline-float-left";
+    if (layout === "float-right") return "activity-context-inline-float-right";
+    return "activity-context-inline-block";
+  }
+
+  function contextImageCssWidth(entry) {
+    const width = Number(entry?.pdfW);
+    if (!Number.isFinite(width)) return "";
+
+    const percent = Math.max(24, Math.min(92, Math.round(width * 100)));
+    return `${percent}%`;
   }
 
   function insertContextBlockAfterLine(textBlock, lineIndex, block) {
